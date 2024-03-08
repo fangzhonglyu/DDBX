@@ -1,17 +1,16 @@
 //
-//  NLHostScene.h
-//  Network Lab
+//  DDBXLoginScene.h
+//  DDBX Client
 //
-//  This class represents the scene for the host when creating a game. Normally
-//  this class would be combined with the class for the client scene (as both
-//  initialize the network controller).  But we have separated to make the code
-//  a little clearer for this lab.
+//  Login controller for the DDBX Client application.
 //
-//  Author: Walker White, Aidan Hobler
-//  Version: 2/8/22
+//  Author: Barry Lyu
+//  Version: 3/8/24
 //
-#ifndef __NL_HOST_SCENE_H__
-#define __NL_HOST_SCENE_H__
+
+
+#ifndef __DDBX_LOGIN_SCENE_H__
+#define __DDBX_LOGIN_SCENE_H__
 #include <cugl/cugl.h>
 #include <vector>
 
@@ -26,7 +25,7 @@ using namespace cugl::physics2::net;
  * network controller.  We have separate the host from the client to make the
  * code a little more clear.
  */
-class HostScene : public cugl::Scene2 {
+class LoginScene : public cugl::Scene2 {
 
 protected:
     /** The asset manager for this scene. */
@@ -39,25 +38,18 @@ protected:
     /** The back button for the menu scene */
     std::shared_ptr<cugl::scene2::Button> _backout;
     /** The game id label (for updating) */
-    std::shared_ptr<cugl::scene2::Label> _gameid;
+    std::shared_ptr<cugl::scene2::TextField> _gameid;
     /** The players label (for updating) */
-    std::shared_ptr<cugl::scene2::Label> _player;
+    std::shared_ptr<cugl::scene2::TextField> _player;
 
     /** Whether the startGame button had been pressed. */
     bool _startGameClicked = false;
     /** Whether the back button had been pressed. */
     bool _backClicked = false;
-    
-    /** The network configuration */
-    cugl::net::NetcodeConfig _config;
-    
-    cugl::Timestamp _pingTimer;
-    
-    Uint64 _totalPing;
-    
-    int _sendCount;
-    
-    int _receiveCount;
+    /** Whether the player is logged in. */
+    bool _isLoggedin = false;
+
+    std::string _authToken;
 
 public:
 #pragma mark -
@@ -68,7 +60,7 @@ public:
      * This constructor does not allocate any objects or start the game.
      * This allows us to use the object without a heap pointer.
      */
-    HostScene() : cugl::Scene2() {}
+    LoginScene() : cugl::Scene2() {}
     
     /**
      * Disposes of all (non-static) resources allocated to this mode.
@@ -76,7 +68,7 @@ public:
      * This method is different from dispose() in that it ALSO shuts off any
      * static resources, like the input controller.
      */
-    ~HostScene() { dispose(); }
+    ~LoginScene() { dispose(); }
     
     /**
      * Disposes of all (non-static) resources allocated to this mode.
@@ -97,7 +89,7 @@ public:
      *
      * @return true if the controller is initialized properly, false otherwise.
      */
-    bool init(const std::shared_ptr<cugl::AssetManager>& assets, std::shared_ptr<NetEventController> network);
+    bool init(const std::shared_ptr<cugl::AssetManager>& assets);
     
     /**
      * Sets whether the scene is currently active
@@ -124,25 +116,17 @@ public:
      */
     bool getBackClicked() { return _backClicked; };
 
+    bool isLoggedin() { return _isLoggedin; }
+
 private:
     /**
      * Updates the text in the given button.
-     *
-     * Techincally a button does not contain text. A button is simply a scene graph
-     * node with one child for the up state and another for the down state. So to
-     * change the text in one of our buttons, we have to descend the scene graph.
-     * This method simplifies this process for you.
      *
      * @param button    The button to modify
      * @param text      The new text value
      */
     void updateText(const std::shared_ptr<cugl::scene2::Button>& button, const std::string text);
     
-    /**
-     * This method prompts the network controller to start the game.
-     */
-    void startGame();
-    
 };
 
-#endif /* __NL_HOST_SCENE_H__ */
+#endif /* __DDBX_LOGIN_SCENE_H__ */

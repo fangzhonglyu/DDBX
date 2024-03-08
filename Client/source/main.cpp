@@ -28,7 +28,7 @@
 //  Version: 7/1/16
 
 // Include your application class
-#include "NLApp.h"
+#include "DDBXApp.h"
 
 using namespace cugl;
 
@@ -43,11 +43,11 @@ using namespace cugl;
  */
 int main(int argc, char * argv[]) {
     // Change this to your application class
-    NetApp app;
+    DDBXApp app;
     
     // Set the properties of your application
-    app.setName("Networked Physics Demo");
-    app.setOrganization("GDIAC");
+    app.setName("DDBX Client");
+    app.setOrganization("FLYU");
     app.setHighDPI(true);
 
     //app.setFullscreen(true);

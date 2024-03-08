@@ -66,6 +66,10 @@
 			"file":     "fonts/RetroGame.ttf",
 			"size":     64
 		},
+        "ron": {
+            "file":     "fonts/RON.ttf",
+            "size":     36
+        },
         "gyparody": {
             "file":     "fonts/gyparody-hv.ttf",
             "size":     48
@@ -130,8 +134,8 @@
                     "data" : {
                         "anchor"  : [0.5,1.0],
                         "scale"    : 1.5,
-                        "font"     : "gyparody",
-                        "text"     : "Host View",
+                        "font"     : "ron",
+                        "text"     : "LOGIN",
                         "padding"  : [20, 20, 20, 20],
                         "halign"   : "center",
                         "valign"   : "middle"
@@ -139,28 +143,6 @@
                     "layout" : {
                         "x_anchor" : "center",
                         "y_anchor" : "top"
-                    }
-                },
-                "back" : {
-                    "type"      : "Button",
-                    "data"   : {
-                        "upnode"  : "up",
-                        "anchor":   [0.0,0.0]
-                    },
-                    "children": {
-                        "up" : {
-                            "type": "Image",
-                            "data": {
-                                "texture":  "left"
-                            }
-                        }
-                    },
-                    "layout" : {
-                        "x_anchor" : "left",
-                        "y_anchor" : "bottom",
-                        "y_offset" : 10,
-                        "x_offset" : 10,
-                        "absolute" : true
                     }
                 },
                 "center" : {
@@ -186,16 +168,16 @@
                             },
                             "data"   : {
                                 "anchor"  : [0.5,0.5],
-                                "size": [500,100]
+                                "size": [700,100]
                             },
                             "children" : {
                                 "label": {
                                     "type": "Label",
                                     "data"   : {
                                         "anchor"   : [0.5, 0.5],
-                                        "font"     : "gyparody",
-                                        "text"     : "Game ID:",
-                                        "padding"  : [20, 20, 40, 20],
+                                        "font"     : "ron",
+                                        "text"     : "Username:",
+                                        "padding"  : [20, 20, 20, 20],
                                         "halign"   : "left",
                                         "valign"   : "middle"
                                     },
@@ -206,9 +188,9 @@
                                 "field": {
                                     "type": "Widget",
                                     "data"   : {
-                                        "key"     : "labelbox",
+                                        "key"     : "textfield",
                                         "variables" : {
-                                            "size": [200,100],
+                                            "size": [400,100],
                                             "text": "",
                                             "halign": "center",
                                             "framecolor": "#000088"
@@ -241,8 +223,8 @@
                                     "type": "Label",
                                     "data"   : {
                                         "anchor"   : [0.5, 0.5],
-                                        "font"     : "gyparody",
-                                        "text"     : "Players:",
+                                        "font"     : "ron",
+                                        "text"     : "Password:",
                                         "padding"  : [20, 20, 20, 20],
                                         "halign"   : "left",
                                         "valign"   : "middle"
@@ -256,10 +238,10 @@
                                     "data"   : {
                                         "key"     : "textfield",
                                         "variables" : {
-                                            "size": [200,100],
-                                            "text": "1",
+                                            "size": [400,100],
+                                            "text": "",
                                             "halign": "center",
-                                            "framecolor": "#000088"
+                                            "framecolor": "#333333"
                                         }
                                     },
                                     "layout" : {
@@ -279,7 +261,7 @@
                                  "variables" : {
                                      "size": [400,100],
                                      "text": "Waiting",
-                                     "color": "#000088"
+                                     "color": "#333333"
                                  }
                              },
                              "layout" : {
@@ -306,7 +288,7 @@
                     "data" : {
                         "anchor"  : [0.5,1.0],
                         "scale"    : 1.5,
-                        "font"     : "gyparody",
+                        "font"     : "ron",
                         "text"     : "Client View",
                         "padding"  : [20, 20, 20, 20],
                         "halign"   : "center",
@@ -362,14 +344,14 @@
                             },
                             "data"   : {
                                 "anchor"  : [0.5,0.5],
-                                "size": [500,100]
+                                "size": [700,100]
                             },
                             "children" : {
                                 "label": {
                                     "type": "Label",
                                     "data"   : {
                                         "anchor"   : [0.5, 0.5],
-                                        "font"     : "gyparody",
+                                        "font"     : "ron",
                                         "text"     : "Game ID:",
                                         "padding"  : [20, 20, 40, 20],
                                         "halign"   : "left",
@@ -384,7 +366,7 @@
                                     "data"   : {
                                         "key"     : "textfield",
                                         "variables" : {
-                                            "size": [200,100],
+                                            "size": [400,100],
                                             "text": "",
                                             "halign": "center",
                                             "framecolor": "#000088"
@@ -417,7 +399,7 @@
                                     "type": "Label",
                                     "data"   : {
                                         "anchor"   : [0.5, 0.5],
-                                        "font"     : "gyparody",
+                                        "font"     : "ron",
                                         "text"     : "Players:",
                                         "padding"  : [20, 20, 20, 20],
                                         "halign"   : "left",
@@ -497,7 +479,7 @@
                             "type": "Label",
                             "data"   : {
                                 "anchor"   : [0.5, 0.5],
-                                "font"     : "gyparody",
+                                "font"     : "ron",
                                 "text"     : "Players:",
                                 "padding"  : [20, 20, 20, 20],
                                 "halign"   : "left",
@@ -699,7 +681,7 @@
                                 "key"     : "colorbutton",
                                 "variables" : {
                                     "size": [100,100],
-                                    "color": "#888888"
+                                    "color": "#333333"
                                 }
                             },
                             "layout" : {

@@ -1,21 +1,16 @@
 //
-//  NLLoadingScene.h
-//  Networked Physics Demo
+//  DDBXLoadingScene.h
+//  DDBX Client
 //
-//  This module provides a very barebones loading screen.  Most of the time you
-//  will not need a loading screen, because the assets will load so fast.  But
-//  just in case, this is a simple example you can use in your games.
+//  Loading scene for the DDBX Client application.
 //
-//  We know from 3152 that you all like to customize this screen.  Therefore,
-//  we have kept it as simple as possible so that it is easy to modify.
+//  Author: Barry Lyu
+//  Version: 3/8/24
 //
-//  Author: Walker White
-//  Version: 1/10/17
-//
-#ifndef __NL_LOADING_SCENE_H__
-#define __NL_LOADING_SCENE_H__
-#include <cugl/cugl.h>
 
+#ifndef __DDBX_LOADING_SCENE_H__
+#define __DDBX_LOADING_SCENE_H__
+#include <cugl/cugl.h>
 
 /**
  * This class is a simple loading screen for asychronous asset loading.
@@ -115,4 +110,4 @@ public:
 };
 
 
-#endif /* __NL_LOADING_SCENE_H__ */
+#endif /* __DDBX_LOADING_SCENE_H__ */

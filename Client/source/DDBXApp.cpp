@@ -1,19 +1,16 @@
 //
-//  NLApp.cpp
-//  Networked Physics Demo
+//  DDBXApp.cpp
+//  DDBX Client
 //
-//  This is the root class for your game.  The file main.cpp accesses this class
-//  to run the application.  While you could put most of your game logic in
-//  this class, we prefer to break the game up into player modes and have a
-//  class for each mode.
+//  Root class for the DDBX Client application.
 //
-//  Author: Walker White
-//  Version: 1/10/17
+//  Author: Barry Lyu
+//  Version: 3/8/24
 //
-#include "NLApp.h"
+
+#include "DDBXApp.h"
 
 using namespace cugl;
-
 
 #pragma mark -
 #pragma mark Application State
@@ -28,10 +25,10 @@ using namespace cugl;
  * very last line.  This ensures that the state will transition to FOREGROUND,
  * causing the application to run.
  */
-void NetApp::onStartup() {
+void DDBXApp::onStartup() {
     _assets = AssetManager::alloc();
     _batch  = SpriteBatch::alloc();
-    
+
     // Start-up basic input
 #ifdef CU_TOUCH_SCREEN
     Input::activate<Touchscreen>();
@@ -73,11 +70,9 @@ void NetApp::onStartup() {
  * very last line.  This ensures that the state will transition to NONE,
  * causing the application to be deleted.
  */
-void NetApp::onShutdown() {
+void DDBXApp::onShutdown() {
     _gameplay.dispose();
-    _mainmenu.dispose();
-    _hostgame.dispose();
-    _joingame.dispose();
+    _loginScene.dispose();
     _assets = nullptr;
     _batch = nullptr;
     
@@ -103,7 +98,7 @@ void NetApp::onShutdown() {
  * Otherwise, the audio thread may persist while the application is in
  * the background.
  */
-void NetApp::onSuspend() {
+void DDBXApp::onSuspend() {
     AudioEngine::get()->pause();
 }
 
@@ -117,7 +112,7 @@ void NetApp::onSuspend() {
  * If you are using audio, you should use this method to resume any audio
  * paused before app suspension.
  */
-void NetApp::onResume() {
+void DDBXApp::onResume() {
     AudioEngine::get()->resume();
 }
 
@@ -125,96 +120,54 @@ void NetApp::onResume() {
 #pragma mark -
 #pragma mark Application Loop
 
-void NetApp::preUpdate(float timestep){
+void DDBXApp::preUpdate(float timestep){
     if (_status == LOAD && _loading.isActive()) {
         _loading.update(0.01f);
     }
     else if (_status == LOAD) {
-        _network = NetEventController::alloc(_assets);
         _loading.dispose(); // Disables the input listeners in this mode
-        _mainmenu.init(_assets);
-        _mainmenu.setActive(true);
-        _hostgame.init(_assets,_network);
-        _joingame.init(_assets,_network);
-        //_gameplay.init(_assets);
-        _status = MENU;
+        _loginScene.init(_assets);
+        _loginScene.setActive(true);
+        _status = LOGIN;
     }
-    else if (_status == MENU) {
-        updateMenuScene(timestep);
-    }
-    else if (_status == HOST){
-        updateHostScene(timestep);
-    }
-    else if (_status == CLIENT){
-        updateClientScene(timestep);
+    else if (_status == LOGIN) {
+ /*       if (_loginScene.isLoggedin()) {
+			_loginScene.setActive(false);
+			_gameplay.init(_assets);
+			_status = GAME;
+		}*/
     }
     else if (_status == GAME){
         if(_gameplay.isComplete()){
             _gameplay.reset();
-            _status = MENU;
-            _mainmenu.setActive(true);
+            _status = LOGIN;
+            _loginScene.setActive(true);
         }
         _gameplay.preUpdate(timestep);
     }
 }
 
-void NetApp::postUpdate(float timestep) {
+void DDBXApp::postUpdate(float timestep) {
     if (_status == GAME) {
         _gameplay.postUpdate(timestep);
     }
 }
 
-void NetApp::fixedUpdate() {
+void DDBXApp::fixedUpdate() {
     if (_status == GAME) {
         _gameplay.fixedUpdate();
-    }
-    if(_network){
-        _network->updateNet();
     }
 }
 
 /**
  * The method called to update the application data.
  *
- * This is your core loop and should be replaced with your custom implementation.
- * This method should contain any code that is not an OpenGL call.
- *
- * When overriding this method, you do not need to call the parent method
- * at all. The default implmentation does nothing.
- *
  * @param timestep  The amount of time (in seconds) since the last frame
  */
-void NetApp::update(float timestep) {
+void DDBXApp::update(float timestep) {
     //deprecated
 }
 
-
-/**
- * Inidividualized update method for the menu scene.
- *
- * This method keeps the primary {@link #update} from being a mess of switch
- * statements. It also handles the transition logic from the menu scene.
- *
- * @param timestep  The amount of time (in seconds) since the last frame
- */
-void NetApp::updateMenuScene(float timestep) {
-    _mainmenu.update(timestep);
-    switch (_mainmenu.getChoice()) {
-        case MenuScene::Choice::HOST:
-            _mainmenu.setActive(false);
-            _hostgame.setActive(true);
-            _status = HOST;
-            break;
-        case MenuScene::Choice::JOIN:
-            _mainmenu.setActive(false);
-            _joingame.setActive(true);
-            _status = CLIENT;
-            break;
-        case MenuScene::Choice::NONE:
-            // DO NOTHING
-            break;
-    }
-}
 
 /**
  * Inidividualized update method for the host scene.
@@ -224,65 +177,8 @@ void NetApp::updateMenuScene(float timestep) {
  *
  * @param timestep  The amount of time (in seconds) since the last frame
  */
-void NetApp::updateHostScene(float timestep) {
-    _hostgame.update(timestep);
-    if(_hostgame.getBackClicked()){
-        _status = MENU;
-        _hostgame.setActive(false);
-        _mainmenu.setActive(true);
-    }
-    else if (_network->getStatus() == NetEventController::Status::HANDSHAKE && _network->getShortUID()) {
-        _gameplay.init(_assets, _network, true);
-        _network->markReady();
-    }
-    else if (_network->getStatus() == NetEventController::Status::INGAME) {
-        _hostgame.setActive(false);
-        _gameplay.setActive(true);
-        _status = GAME;
-    }
-    else if (_network->getStatus() == NetEventController::Status::NETERROR) {
-        _network->disconnect();
-		_hostgame.setActive(false);
-		_mainmenu.setActive(true);
-        _gameplay.dispose();
-		_status = MENU;
-	}
-}
-
-/**
- * Inidividualized update method for the client scene.
- *
- * This method keeps the primary {@link #update} from being a mess of switch
- * statements. It also handles the transition logic from the client scene.
- *
- * @param timestep  The amount of time (in seconds) since the last frame
- */
-void NetApp::updateClientScene(float timestep) {
-    //TODO: Write transition logic for client scene
-#pragma mark SOLUTION
-    _joingame.update(timestep);
-    if(_joingame.getBackClicked()){
-        _status = MENU;
-        _joingame.setActive(false);
-        _mainmenu.setActive(true);
-    }
-    else if (_network->getStatus() == NetEventController::Status::HANDSHAKE && _network->getShortUID()) {
-        _gameplay.init(_assets, _network, false);
-        _network->markReady();
-    }
-    else if (_network->getStatus() == NetEventController::Status::INGAME) {
-        _joingame.setActive(false);
-        _gameplay.setActive(true);
-        _status = GAME;
-    }
-    else if (_network->getStatus() == NetEventController::Status::NETERROR) {
-        _network->disconnect();
-		_joingame.setActive(false);
-		_mainmenu.setActive(true);
-        _gameplay.dispose();
-		_status = MENU;
-	}
-#pragma mark END SOLUTION
+void DDBXApp::updateLoginScene(float timestep) {
+    _loginScene.update(timestep);
 }
 
 /**
@@ -294,19 +190,13 @@ void NetApp::updateClientScene(float timestep) {
  * When overriding this method, you do not need to call the parent method
  * at all. The default implmentation does nothing.
  */
-void NetApp::draw() {
+void DDBXApp::draw() {
     switch (_status) {
         case LOAD:
             _loading.render(_batch);
             break;
-        case MENU:
-            _mainmenu.render(_batch);
-            break;
-        case HOST:
-            _hostgame.render(_batch);
-            break;
-        case CLIENT:
-            _joingame.render(_batch);
+        case LOGIN:
+            _loginScene.render(_batch);
             break;
         case GAME:
             _gameplay.render(_batch);

@@ -1,20 +1,17 @@
 //
-//  NLHostScene.cpp
-//  Network Lab
+//  DDBXLoginScene.cpp
+//  DDBX Client
 //
-//  This class represents the scene for the host when creating a game. Normally
-//  this class would be combined with the class for the client scene (as both
-//  initialize the network controller).  But we have separated to make the code
-//  a little clearer for this lab.
+//  Login controller for the DDBX Client application.
 //
-//  Author: Walker White, Aidan Hobler
-//  Version: 2/8/22
+//  Author: Barry Lyu
+//  Version: 3/8/24
 //
 #include <cugl/cugl.h>
 #include <iostream>
 #include <sstream>
 
-#include "NLHostScene.h"
+#include "DDBXLoginScene.h"
 
 using namespace cugl;
 using namespace cugl::net;
@@ -69,7 +66,7 @@ static std::string hex2dec(const std::string hex) {
  *
  * @return true if the controller is initialized properly, false otherwise.
  */
-bool HostScene::init(const std::shared_ptr<cugl::AssetManager>& assets, std::shared_ptr<NetEventController> network) {
+bool LoginScene::init(const std::shared_ptr<cugl::AssetManager>& assets) {
     // Initialize the scene to a locked width
     Size dimen = Application::get()->getDisplaySize();
     dimen *= SCENE_HEIGHT/dimen.height;
@@ -78,8 +75,6 @@ bool HostScene::init(const std::shared_ptr<cugl::AssetManager>& assets, std::sha
     } else if (!Scene2::init(dimen)) {
         return false;
     }
-
-    _network = network;
     
     // Start up the input handler
     _assets = assets;
@@ -90,31 +85,17 @@ bool HostScene::init(const std::shared_ptr<cugl::AssetManager>& assets, std::sha
     scene->doLayout(); // Repositions the HUD
 
     _startgame = std::dynamic_pointer_cast<scene2::Button>(_assets->get<scene2::SceneNode>("host_center_start"));
-    _backout = std::dynamic_pointer_cast<scene2::Button>(_assets->get<scene2::SceneNode>("host_back"));
-    _gameid = std::dynamic_pointer_cast<scene2::Label>(_assets->get<scene2::SceneNode>("host_center_game_field_text"));
-    _player = std::dynamic_pointer_cast<scene2::Label>(_assets->get<scene2::SceneNode>("host_center_players_field_text"));
-    
+    _gameid = std::dynamic_pointer_cast<scene2::TextField>(_assets->get<scene2::SceneNode>("host_center_game_field_text"));
+    _player = std::dynamic_pointer_cast<scene2::TextField>(_assets->get<scene2::SceneNode>("host_center_players_field_text"));
+
     // Program the buttons
-    _backout->addListener([this](const std::string& name, bool down) {
-        if (down) {
-            _backClicked = true;
-        }
-    });
 
     _startgame->addListener([this](const std::string& name, bool down) {
         if (down) {
-            startGame();
+            
         }
     });
     
-    // Create the server configuration
-    auto json = _assets->get<JsonValue>("server");
-    _config.set(json);
-    
-    _sendCount = 0;
-    _receiveCount = 0;
-    _totalPing = 0;
-
     addChild(scene);
     setActive(false);
     return true;
@@ -123,7 +104,7 @@ bool HostScene::init(const std::shared_ptr<cugl::AssetManager>& assets, std::sha
 /**
  * Disposes of all (non-static) resources allocated to this mode.
  */
-void HostScene::dispose() {
+void LoginScene::dispose() {
     if (_active) {
         removeAllChildren();
         _active = false;
@@ -139,7 +120,7 @@ void HostScene::dispose() {
  *
  * @param value whether the scene is currently active
  */
-void HostScene::setActive(bool value) {
+void LoginScene::setActive(bool value) {
     if (isActive() != value) {
         Scene2::setActive(value);
         
@@ -148,18 +129,16 @@ void HostScene::setActive(bool value) {
          */
 #pragma mark BEGIN SOLUTION
         if (value) {
-            _backout->activate();
-            _network->disconnect();
-            _network->connectAsHost();
+            _gameid->activate();
+            _player->activate();
             _backClicked = false;
         } else {
-            _gameid->setText("");
+            _gameid->deactivate();
+            _player->deactivate();
             _startgame->deactivate();
             updateText(_startgame, "INACTIVE");
-            _backout->deactivate();
             // If any were pressed, reset them
             _startgame->setDown(false);
-            _backout->setDown(false);
         }
 #pragma mark END SOLUTION
     }
@@ -177,10 +156,9 @@ void HostScene::setActive(bool value) {
  * @param button    The button to modify
  * @param text      The new text value
  */
-void HostScene::updateText(const std::shared_ptr<scene2::Button>& button, const std::string text) {
+void LoginScene::updateText(const std::shared_ptr<scene2::Button>& button, const std::string text) {
     auto label = std::dynamic_pointer_cast<scene2::Label>(button->getChildByName("up")->getChildByName("label"));
     label->setText(text);
-
 }
 
 #pragma mark -
@@ -192,33 +170,6 @@ void HostScene::updateText(const std::shared_ptr<scene2::Button>& button, const 
  *
  * @param timestep  The amount of time (in seconds) since the last frame
  */
-void HostScene::update(float timestep) {
-    /**
-     * TODO: check for the status of `_network` (The NetworkController). If it is CONNECTED, you would need to update the scene nodes so that _gameId displays the id of the room (converted from hex to decimal) and _player displays the number of players. Additionally, you should check whether the `_startgame` button has been pressed and update its text. If it is not pressed yet, then its should display "Start Game" and be activated, otherwise, it should be deactivated and show "Starting".
-     */
-#pragma mark BEGIN SOLUTION
-    if(_network->getStatus() == NetEventController::Status::CONNECTED){
-        if (!_startGameClicked) {
-            updateText(_startgame, "Start Game");
-            _startgame->activate();
-        }
-        else {
-            updateText(_startgame, "Starting");
-            _startgame->deactivate();
-        }
-		_gameid->setText(hex2dec(_network->getRoomID()));
-        _player->setText(std::to_string(_network->getNumPlayers()));
-	}
-#pragma mark END SOLUTION
-}
-
-/**
- * This method prompts the network controller to start the game.
- */
-void HostScene::startGame(){
-    //TODO: call the network controller to start the game and set the _startGameClicked to true.
-#pragma mark BEGIN SOLUTION
-    _network->startGame();
-    _startGameClicked = true;
-#pragma mark END SOLUTION
+void LoginScene::update(float timestep) {
+   _gameid->activate();
 }

@@ -42,7 +42,7 @@
                 "type" : "Anchored"
             },
             "data" : {
-                "color": [239,61,49,255]
+                "color": [50,50,50,255]
             },
             "children"  : {
                 "logo"  : {
