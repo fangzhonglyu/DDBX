@@ -1,1 +1,7 @@
 python-spanner
+Client/build
+Client/*.DS_Store
+Client/*.plist
+Client/.vs
+Client/assets/log_host.txt
+Client/assets/log_client.txt
