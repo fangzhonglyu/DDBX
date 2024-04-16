@@ -15,6 +15,8 @@
 #include "DDBXLoadingScene.h"
 #include "DDBXLoginScene.h"
 #include "NLClientScene.h"
+#include "DDBXHTTP.h"
+#include "cpr/cpr.h"
 
 using namespace cugl::physics2::net;
 
@@ -49,6 +51,7 @@ protected:
     
     /** The current status of the application */
     Status _status;
+
     
 public:
 #pragma mark Constructors

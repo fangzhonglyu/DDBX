@@ -13,6 +13,7 @@
 
 #include "DDBXLoginScene.h"
 
+
 using namespace cugl;
 using namespace cugl::net;
 using namespace std;
@@ -89,6 +90,8 @@ bool LoginScene::init(const std::shared_ptr<cugl::AssetManager>& assets) {
     _player = std::dynamic_pointer_cast<scene2::TextField>(_assets->get<scene2::SceneNode>("host_center_players_field_text"));
 
     // Program the buttons
+    
+    
 
     _startgame->addListener([this](const std::string& name, bool down) {
         if (down) {
@@ -123,7 +126,6 @@ void LoginScene::dispose() {
 void LoginScene::setActive(bool value) {
     if (isActive() != value) {
         Scene2::setActive(value);
-        
         /**
          * TODO: if value is true, you need to activate the _backout button, and set the clicked variable to false. You need to also call the network controller to start a connection as a host. If the value is false, and reset all buttons and textfields to their original state.
          */
@@ -132,6 +134,8 @@ void LoginScene::setActive(bool value) {
             _gameid->activate();
             _player->activate();
             _backClicked = false;
+            updateText(_startgame, "LOGIN");
+            _startgame->activate();
         } else {
             _gameid->deactivate();
             _player->deactivate();
@@ -140,6 +144,8 @@ void LoginScene::setActive(bool value) {
             // If any were pressed, reset them
             _startgame->setDown(false);
         }
+        
+        
 #pragma mark END SOLUTION
     }
 }
@@ -171,5 +177,4 @@ void LoginScene::updateText(const std::shared_ptr<scene2::Button>& button, const
  * @param timestep  The amount of time (in seconds) since the last frame
  */
 void LoginScene::update(float timestep) {
-   _gameid->activate();
 }

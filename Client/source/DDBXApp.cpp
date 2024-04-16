@@ -55,6 +55,17 @@ void DDBXApp::onStartup() {
     
     cugl::net::NetworkLayer::start(net::NetworkLayer::Log::INFO);
     
+//    _http = std::make_shared<HTTP>();
+//    
+    //Send JSON
+    cpr::Response r = cpr::Post(cpr::Url{"https://us-east4-ddbx-soxehli.cloudfunctions.net/test_player_info/login"},
+                                cpr::Body("{\"username\":\"soxehli\",\"password\":\"barry030707\"}"),
+                                cpr::Header{{"Content-Type", "application/json"}});
+//    
+    CULog("%s",r.text.c_str());
+//    
+//    _http->initHTTPTransport("https://us-east4-lateral-store-416322.cloudfunctions.net","80");
+//    
     Application::onStartup(); // YOU MUST END with call to parent
     setDeterministic(true);
 }
@@ -136,6 +147,7 @@ void DDBXApp::preUpdate(float timestep){
 			_gameplay.init(_assets);
 			_status = GAME;
 		}*/
+        _loginScene.setActive(true);
     }
     else if (_status == GAME){
         if(_gameplay.isComplete()){
