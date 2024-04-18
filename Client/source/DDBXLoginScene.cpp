@@ -10,8 +10,15 @@
 #include <cugl/cugl.h>
 #include <iostream>
 #include <sstream>
+#include <cpr/cpr.h>
 
 #include "DDBXLoginScene.h"
+
+//#define server_url (_assets->get<JsonValue>("server")->getString("BackendURL"))
+
+#define server_url std::string("https://us-east4-ddbx-soxehli.cloudfunctions.net/test_player_info")
+
+#define login_body(username,password) ("{\"username\":\"" + (username) + "\",\"password\":\"" + (password) + "\"}")
 
 
 using namespace cugl;
@@ -90,12 +97,13 @@ bool LoginScene::init(const std::shared_ptr<cugl::AssetManager>& assets) {
     _player = std::dynamic_pointer_cast<scene2::TextField>(_assets->get<scene2::SceneNode>("host_center_players_field_text"));
 
     // Program the buttons
-    
-    
 
     _startgame->addListener([this](const std::string& name, bool down) {
         if (down) {
-            
+            _loginClicked = true;
+            _response = cpr::PostAsync(cpr::Url{server_url + "/login"},
+                                        cpr::Body(login_body(_gameid->getText(), _player->getText())),
+                                        cpr::Header{{"Content-Type", "application/json"}});
         }
     });
     
@@ -167,6 +175,8 @@ void LoginScene::updateText(const std::shared_ptr<scene2::Button>& button, const
     label->setText(text);
 }
 
+int counter = 0;
+
 #pragma mark -
 #pragma mark Student Methods
 /**
@@ -177,4 +187,30 @@ void LoginScene::updateText(const std::shared_ptr<scene2::Button>& button, const
  * @param timestep  The amount of time (in seconds) since the last frame
  */
 void LoginScene::update(float timestep) {
+    if(_loginClicked || _isLoggedin){
+        _startgame->deactivate();
+    }
+    else{
+        _startgame->activate();
+    }
+    if(_loginClicked && _response.wait_for(std::chrono::seconds(0)) == std::future_status::ready){
+        auto response = _response.get();
+        if(response.status_code == 200){
+            updateText(_startgame, "LOGGEDIN");
+            CULog("%s", response.text.c_str());
+            auto json = JsonValue::allocWithJson(response.text);
+            _authToken = json->getString("token");
+            _uuid = json->getString("uuid");
+            _gameid->deactivate();
+            _isLoggedin = true;
+        }
+        else{
+            updateText(_startgame, "FAILED");
+            
+            _startgame->setDown(false);
+        }
+        _loginClicked = false;
+    }
+    counter++;
+    setColor(Color4(counter % 255, 100, 100));
 }

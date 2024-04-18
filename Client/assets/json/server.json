@@ -18,5 +18,6 @@
         }
     ],
     "max players" : 4,
-    "API version" : 0
+    "API version" : 0,
+    "BackendURL": "https://us-east4-ddbx-soxehli.cloudfunctions.net/test_player_info"
 }

@@ -264,7 +264,6 @@ def signup(request):
 
 @functions_framework.http
 def balance(request):
-    log_error("balance", request, "JUST TESTING")
     # Check for valid request method and JSON
     if "Authorization" not in request.headers:
         return RESPONSE400
@@ -280,4 +279,49 @@ def balance(request):
     except jwt.InvalidTokenError:
         return RESPONSE401
     
-    return payload["sub"]
+    if request.method == "POST":
+        #update the balance
+        request_json = request.get_json(silent=True)
+        if not request_json:
+            return RESPONSE400
+        balance = request_json.get('balance')
+        if not balance:
+            return RESPONSE400
+        
+        try:
+            def update_balance(transaction):
+                # Query the database for the user's UUID and password hash
+                sql = "UPDATE players SET balance = @balance WHERE playerUUID = @playerUUID"
+                params = {"playerUUID": payload["sub"], "balance": balance}
+                param_types = {"playerUUID": spanner.param_types.STRING, "balance": spanner.param_types.INT64}
+                transaction.execute_update(sql, params=params, param_types=param_types)
+
+            database.run_in_transaction(update_balance)
+            return jsonify({"message": "Balance updated successfully."})
+        except Exception as e:
+            # Internal error occurred, log the error and return a 500 response
+            log_error("balance", request, str(e))
+            return RESPONSE500
+
+    # get the balance of the player
+    try:
+        with database.snapshot() as snapshot:
+            # Query the database for the user's UUID and password hash
+            sql = "SELECT balance FROM players WHERE playerUUID = @playerUUID"
+            params = {"playerUUID": payload["sub"]}
+            param_types = {"playerUUID": spanner.param_types.STRING}
+            results = snapshot.execute_sql(sql, params=params, param_types=param_types)
+            
+            users = list(results)
+            
+            # Check if the user exists
+            if len(users) != 1:
+                return RESPONSE401
+            
+            balance = users[0][0]
+            
+            return jsonify({"balance": balance})
+    except Exception as e:
+        # Internal error occurred, log the error and return a 500 response
+        log_error("balance", request, str(e))
+        return RESPONSE500

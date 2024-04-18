@@ -13,6 +13,7 @@
 #define __DDBX_LOGIN_SCENE_H__
 #include <cugl/cugl.h>
 #include <vector>
+#include <cpr/cpr.h>
 
 #define PING_TEST_COUNT 5
 
@@ -41,15 +42,18 @@ protected:
     std::shared_ptr<cugl::scene2::TextField> _gameid;
     /** The players label (for updating) */
     std::shared_ptr<cugl::scene2::TextField> _player;
+    
+    cpr::AsyncResponse _response;
 
     /** Whether the startGame button had been pressed. */
-    bool _startGameClicked = false;
+    bool _loginClicked = false;
     /** Whether the back button had been pressed. */
     bool _backClicked = false;
     /** Whether the player is logged in. */
     bool _isLoggedin = false;
 
     std::string _authToken;
+    std::string _uuid;
 
 public:
 #pragma mark -
@@ -60,7 +64,8 @@ public:
      * This constructor does not allocate any objects or start the game.
      * This allows us to use the object without a heap pointer.
      */
-    LoginScene() : cugl::Scene2() {}
+    LoginScene() : cugl::Scene2(), _response(cpr::AsyncWrapper<cpr::Response>(std::future<cpr::Response>())) {
+    }
     
     /**
      * Disposes of all (non-static) resources allocated to this mode.

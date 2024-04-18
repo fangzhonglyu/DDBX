@@ -1,79 +1,84 @@
-////
-////  DDBXHTTP.h
-////  DDBX Client
-////
-////  HTTP request handler for the DDBX Client application.
-////
-////  Author: Barry Lyu
-////  Version: 3/8/24
-////
 //
-//#ifndef __DDBX_HTTP_H__
-//#define __DDBX_HTTP_H__
+//  DDBXHTTP.h
+//  DDBX Client
 //
-//#include <openssl/ssl.h>
-//#include <openssl/err.h>
-//#include <openssl/bio.h>
-//#include <iostream>
-//#include <cstring>
-//#include <tcptransport.hpp>
-//#include <httpproxytransport.hpp>
-//#include <http.hpp>
-//#include <plog/Log.h>
-//#include <cugl/cugl.h>   
+//  HTTP request handler for the DDBX Client application.
 //
-//using namespace rtc::impl;
-//using namespace cugl;
+//  Author: Barry Lyu
+//  Version: 3/8/24
 //
-//class HTTP {
-//    
-//public:
-//    enum Method {
-//        GET,
-//        POST,
-//        PUT,
-//        DELETE
-//    };
-//    
-//    class Auth {
-//    public:
-//        enum AuthType{
-//            NoAuth,
-//            Bearer
-//        };
-//    
-//        AuthType authType;
-//        std::string token;
-//    };
-//
-//    
-//private:
-//    std::string _host, _service;
-//    Transport::state_callback _callback;
-//    const SSL_METHOD* _method;
-//    std::shared_ptr<TcpTransport> _tcp;
-//    std::shared_ptr<HttpProxyTransport> _http;
-//    bool _valid;
-//    
-//    void stateCallback(Transport::State state);
-//    
-//    void receiveCallback(rtc::message_ptr msg);
-//
-//public:
-//    bool initOpenSSL();
-//    
-//    bool initHTTPTransport(std::string host, std::string service);
-//    
-//    void sendHTTPRequest(rtc::message_ptr message);
-//    
-//    rtc::message_ptr makeRequest(Method method, Auth auth, std::string endPoint, std::string body);
-//    
-//    rtc::message_ptr makeRequest(Method method, Auth auth, std::string endPoint, std::shared_ptr<JsonValue> body){
-//        return makeRequest(method, auth, endPoint, body->toString());
-//    }
-//    
-//    void sendLogin(std::string username, std::string password);
-//
-//};
-//
-//#endif /* __DDBH_HTTP_H__ */
+
+#ifndef __DDBX_HTTP_H__
+#define __DDBX_HTTP_H__
+
+#include <cugl/cugl.h>  
+#include <cpr/cpr.h>
+
+#define login_body(username,password) ("{\"username\":\"" + (username) + "\",\"password\":\"" + (password) + "\"}")
+
+using namespace rtc::impl;
+using namespace cugl;
+
+class HTTP {
+    
+public:
+
+    
+private:
+    std::string _backend_url;
+    bool _isLoggedIn;
+    std::string _authToken;
+    std::string _uuid;
+    
+    std::queue<cpr::AsyncResponse> _responseQueue;
+    
+    cpr::AsyncWrapper<bool> login(std::string username, std::string password){
+        return cpr::PostCallback(
+            [this](cpr::Response r) {
+                if(r.status_code == 200){
+                    auto json = JsonValue::allocWithJson(r.text);
+                    _authToken = json->getString("token");
+                    _uuid = json->getString("uuid");
+                    _isLoggedIn = true;
+                    return true;
+                }
+                else{
+                    _isLoggedIn = false;
+                    return false;
+                }
+            }, 
+            cpr::Url{_backend_url + "/login"},
+            cpr::Body(login_body(username, password)),
+            cpr::Header{{"Content-Type", "application/json"}});
+    }
+    
+    cpr::AsyncWrapper<int> getBalance(){
+        // Perform the request like usually:
+        return cpr::GetCallback(
+            [](cpr::Response r) {
+                if(r.status_code == 200){
+                    auto json = JsonValue::allocWithJson(r.text);
+                    return json->getInt("balance");
+                } else{
+                    return -10000;
+                }
+            }, 
+            cpr::Url{_backend_url},
+            cpr::Bearer{_authToken}
+        );
+    }
+    
+    cpr::AsyncWrapper<bool> setBalance(int balance){
+        return cpr::PostCallback(
+            [](cpr::Response r) {
+                return r.status_code == 200;
+            },
+            cpr::Url{_backend_url + "/balance"},
+            cpr::Body("{\"balance\":" + std::to_string(balance) + "}"),
+            cpr::Header{{"Content-Type", "application/json"}, {"Authorization", "Bearer " + _authToken}}
+        );
+    }
+
+};
+
+#endif /* __DDBH_HTTP_H__ */
