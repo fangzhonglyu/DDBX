@@ -44,15 +44,9 @@ using namespace cugl;
 int main(int argc, char * argv[]) {
     // Change this to your application class
     DDBXApp app;
-    
-    // Set the properties of your application
+        // Set the properties of your application
     app.setName("DDBX Client");
     app.setOrganization("FLYU");
-    app.setHighDPI(true);
-
-    //app.setFullscreen(true);
-    //app.setDisplaySize(1024, 576);
-    app.setVSync(true);
     //app.setFPS(60.0f);
 #if CU_PLATFORM == CU_PLATFORM_MACOS || CU_PLATFORM == CU_PLATFORM_WINDOWS
     app.setMultiSampled(true);
@@ -62,6 +56,8 @@ int main(int argc, char * argv[]) {
     if (!app.init()) {
         return 1;
     }
+    
+    printf("Starting DDBX Client\n");
     
     app.onStartup();
     while (app.step());

@@ -11,10 +11,6 @@
 #ifndef __DDBX_APP_H__
 #define __DDBX_APP_H__
 #include <cugl/cugl.h>
-#include "DDBXGameScene.h"
-#include "DDBXLoadingScene.h"
-#include "DDBXLoginScene.h"
-#include "NLClientScene.h"
 #include "DDBXHTTP.h"
 #include "cpr/cpr.h"
 
@@ -32,19 +28,8 @@ enum Status {
 };
 
 protected:
-    /** The global sprite batch for drawing (only want one of these) */
-    std::shared_ptr<cugl::SpriteBatch> _batch;
     /** The global asset manager */
     std::shared_ptr<cugl::AssetManager> _assets;
-    
-    // Player modes
-
-    /** The primary controller for the game world */
-    GameScene _gameplay;
-    /** The controller for the loading screen */
-    LoadingScene _loading;
-    /** The controller for the login screen */
-    LoginScene _loginScene;
     
     /** Whether or not we have finished loading all assets */
     bool _loaded;
@@ -52,7 +37,6 @@ protected:
     /** The current status of the application */
     Status _status;
 
-    
 public:
 #pragma mark Constructors
     /**
@@ -143,16 +127,5 @@ public:
      */
     virtual void update(float timestep) override;
     
-    /**
-     * Inidividualized update method for the login scene.
-     *
-     * @param timestep  The amount of time (in seconds) since the last frame
-     */
-    void updateLoginScene(float timestep);
-    
-    /**
-     * The method called to draw the application to the screen.
-     */
-    virtual void draw() override;
 };
 #endif /* __DDBX_APP_H__ */
