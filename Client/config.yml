@@ -1,7 +1,7 @@
 ---
-name:   Rocket Online               # The application display name
-short:  Rocket                      # A shortened name for reference
-appid:  edu.cornell.gdiac.netphys   # Application identifier for Mac, iOS, Android
+name:   DDBXServer                  # The application display name
+short:  DDBX                        # A shortened name for reference
+appid:  edu.cornell.gdiac.ddbx      # Application identifier for Mac, iOS, Android
 suffix: GEABBB8D
 
 build:  build                       # The build directory (targets are each a subdirectory)
