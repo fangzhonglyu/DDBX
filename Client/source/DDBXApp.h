@@ -15,6 +15,7 @@
 #include "cpr/cpr.h"
 
 using namespace cugl::physics2::net;
+using namespace cugl::net;
 
 /**
  * This class represents the application root for the ship demo.
@@ -24,6 +25,7 @@ class DDBXApp : public cugl::Application {
 enum Status {
     LOAD,
     LOGIN,
+    LOBBY,
     GAME
 };
 
@@ -33,9 +35,20 @@ protected:
     
     /** Whether or not we have finished loading all assets */
     bool _loaded;
+
+    cugl::net::NetcodeConfig _config;
+
+    std::shared_ptr<NetcodeConnection> _networks;
     
     /** The current status of the application */
     Status _status;
+
+
+    cpr::AsyncResponse _response;
+
+    std::string _uuid;
+
+    std::string _authToken;
 
 public:
 #pragma mark Constructors
@@ -48,7 +61,7 @@ public:
      * of initialization from the constructor allows main.cpp to perform
      * advanced configuration of the application before it starts.
      */
-    DDBXApp() : cugl::Application(), _loaded(false) {}
+    DDBXApp() : cugl::Application(), _loaded(false), _response(cpr::AsyncWrapper<cpr::Response>(std::future<cpr::Response>())) {}
     
     /**
      * Disposes of this application, releasing all resources.

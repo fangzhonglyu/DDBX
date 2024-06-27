@@ -15,6 +15,11 @@ using namespace cugl;
 #pragma mark -
 #pragma mark Server State
 
+#define server_url std::string("https://us-east4-ddbx-soxehli.cloudfunctions.net/test_player_info")
+
+#define login_body(username,password) ("{\"username\":\"" + (username) + "\",\"password\":\"" + (password) + "\"}")
+
+
 /**
  * The method called after OpenGL is initialized, but before running the application.
  *
@@ -27,23 +32,31 @@ using namespace cugl;
  */
 void DDBXApp::onStartup() {
     _assets = AssetManager::alloc();
-
-    _assets->attach<Font>(FontLoader::alloc()->getHook());
-    _assets->attach<Texture>(TextureLoader::alloc()->getHook());
-    _assets->attach<Sound>(SoundLoader::alloc()->getHook());
-    _assets->attach<scene2::SceneNode>(Scene2Loader::alloc()->getHook());
     _assets->attach<JsonValue>(JsonLoader::alloc()->getHook());
-    _assets->attach<WidgetValue>(WidgetLoader::alloc()->getHook());
 
     _status = LOAD;
     
     // Que up the other assets
-    _assets->loadDirectoryAsync("json/assets.json",nullptr);
+    _assets->loadDirectory("json/assets.json");
     
     cugl::net::NetworkLayer::start(net::NetworkLayer::Log::INFO);
+
+    CULog("Assets loaded");
+
+    _status = LOGIN;
+    _response = cpr::PostAsync(cpr::Url{server_url + "/login"},
+                                        cpr::Body(login_body(std::string("server1"), std::string("first"))),
+                                        cpr::Header{{"Content-Type", "application/json"}});
+
+    auto json = _assets->get<JsonValue>("server");
+    _config.set(json);
+    _networks = _networks->alloc(_config);
+
+    setDeterministic(true);
       
     Application::onStartup(); // YOU MUST END with call to parent
-    setDeterministic(true);
+
+    
 }
 
 /**
@@ -59,6 +72,11 @@ void DDBXApp::onStartup() {
  */
 void DDBXApp::onShutdown() {
     _assets = nullptr;
+    if(_networks){
+        _networks->close();
+        _networks = nullptr;
+    }
+
 	Application::onShutdown();  // YOU MUST END with call to parent
 }
 
@@ -89,6 +107,27 @@ void DDBXApp::onSuspend() {
 void DDBXApp::onResume() {
 }
 
+static std::string dec2hex(const std::string dec) {
+    Uint32 value = strtool::stou32(dec);
+    if (value >= 655366) {
+        value = 0;
+    }
+    return strtool::to_hexstring(value,4);
+}
+
+static std::string hex2dec(const std::string hex) {
+    Uint32 value = strtool::stou32(hex,0,16);
+    std::string result = strtool::to_string(value);
+    if (result.size() < 5) {
+        size_t diff = 5-result.size();
+        std::string alt(5,'0');
+        for(size_t ii = 0; ii < result.size(); ii++) {
+            alt[diff+ii] = result[ii];
+        }
+        result = alt;
+    }
+    return result;
+}
 
 #pragma mark -
 #pragma mark Server Loop
@@ -102,7 +141,30 @@ void DDBXApp::postUpdate(float timestep) {
 }
 
 void DDBXApp::fixedUpdate() {
-    
+    if(_status == LOAD && _assets->complete()){
+        
+    }
+
+    if(_status == LOGIN && _response.wait_for(std::chrono::seconds(0)) == std::future_status::ready){
+        auto response = _response.get();
+        if(response.status_code == 200){
+            _status = LOBBY;
+            auto json = JsonValue::allocWithJson(response.text);
+            _authToken = json->getString("token");
+            _uuid = json->getString("playerUUID");
+            printf("Token: %s\n", _authToken.c_str());
+            printf("UUID: %s\n", _uuid.c_str());
+            _networks->open(_uuid, _authToken);
+            CULog("Logged In");
+        }
+    }
+
+    if(_status == LOBBY && _networks->getState() == NetcodeConnection::State::CONNECTED){
+        _status = GAME;
+        CULog("Connected to server");
+        CULog("Room ID: %s", _networks->getRoom().c_str());
+        CULog("HEX Room ID: %s", dec2hex(_networks->getRoom()).c_str());
+    }
 }
 
 /**
