@@ -36,6 +36,7 @@ protected:
 
     /** The menu button for starting a game */
     std::shared_ptr<cugl::scene2::Button> _startgame;
+    
     /** The back button for the menu scene */
     std::shared_ptr<cugl::scene2::Button> _backout;
     /** The game id label (for updating) */
@@ -44,9 +45,13 @@ protected:
     std::shared_ptr<cugl::scene2::TextField> _player;
     
     cpr::AsyncResponse _response;
+    cpr::AsyncResponse _resp2;
+    
+    Uint32 _startgameListener;
 
     /** Whether the startGame button had been pressed. */
     bool _loginClicked = false;
+    bool _checkBalanceClicked = false;
     /** Whether the back button had been pressed. */
     bool _backClicked = false;
     /** Whether the player is logged in. */
@@ -64,7 +69,7 @@ public:
      * This constructor does not allocate any objects or start the game.
      * This allows us to use the object without a heap pointer.
      */
-    LoginScene() : cugl::Scene2(), _response(cpr::AsyncWrapper<cpr::Response>(std::future<cpr::Response>())) {
+    LoginScene() : cugl::Scene2(), _response(cpr::AsyncWrapper<cpr::Response>(std::future<cpr::Response>())), _resp2(cpr::AsyncWrapper<cpr::Response>(std::future<cpr::Response>())){
     }
     
     /**

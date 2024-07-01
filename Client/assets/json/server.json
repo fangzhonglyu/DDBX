@@ -1,6 +1,6 @@
 {
     "lobby" : {
-        "address" : "46.101.187.102",
+        "address" : "https://lobby-less-tob64h5r3q-uc.a.run.app",
         "port": 8080
     },
     "ice servers" : [

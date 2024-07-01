@@ -99,6 +99,7 @@ void DDBXApp::onShutdown() {
  * the background.
  */
 void DDBXApp::onSuspend() {
+    CULog("RESUMED");
     AudioEngine::get()->pause();
 }
 
@@ -113,6 +114,7 @@ void DDBXApp::onSuspend() {
  * paused before app suspension.
  */
 void DDBXApp::onResume() {
+    CULog("RESUMED");
     AudioEngine::get()->resume();
 }
 
@@ -138,9 +140,9 @@ void DDBXApp::preUpdate(float timestep){
 		}*/
         _loginScene.update(timestep);
         if(_loginScene.isLoggedin()){
-            _loginScene.setActive(false);
-            _gameplay.init(_assets);
-            _status = GAME;
+//            _loginScene.setActive(false);
+//            _gameplay.init(_assets);
+//            _status = GAME;
         }
     }
     else if (_status == GAME){

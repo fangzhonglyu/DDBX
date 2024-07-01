@@ -20,6 +20,7 @@
 
 #define login_body(username,password) ("{\"username\":\"" + (username) + "\",\"password\":\"" + (password) + "\"}")
 
+#define balance_body(balance) ("{\"balance\":" + (std::to_string(balance)) + "}")
 
 using namespace cugl;
 using namespace cugl::net;
@@ -96,14 +97,17 @@ bool LoginScene::init(const std::shared_ptr<cugl::AssetManager>& assets) {
     _gameid = std::dynamic_pointer_cast<scene2::TextField>(_assets->get<scene2::SceneNode>("host_center_game_field_text"));
     _player = std::dynamic_pointer_cast<scene2::TextField>(_assets->get<scene2::SceneNode>("host_center_players_field_text"));
 
+    _player->setHidden(true);
+    
     // Program the buttons
 
-    _startgame->addListener([this](const std::string& name, bool down) {
+    _startgameListener = _startgame->addListener([this](const std::string& name, bool down) {
         if (down) {
             _loginClicked = true;
             _response = cpr::PostAsync(cpr::Url{server_url + "/login"},
                                         cpr::Body(login_body(_gameid->getText(), _player->getText())),
                                         cpr::Header{{"Content-Type", "application/json"}});
+            CULog("LOGIN REQUEST SENT");
         }
     });
     
@@ -187,12 +191,26 @@ int counter = 0;
  * @param timestep  The amount of time (in seconds) since the last frame
  */
 void LoginScene::update(float timestep) {
-    if(_loginClicked || _isLoggedin){
+    if(_loginClicked){
         _startgame->deactivate();
     }
     else{
         _startgame->activate();
     }
+    
+//    if(_checkBalanceClicked && _resp2.wait_for(std::chrono::seconds(0)) == std::future_status::ready){
+//        auto response = _resp2.get();
+//        if(response.status_code == 200){
+//            auto json = JsonValue::allocWithJson(response.text);
+//            _player->setText("Balance: " + json->getString("balance"));
+//        }
+//        else{
+//            _player->setText("Check failed");
+//        }
+//        _checkBalanceClicked = false;
+//    }
+    
+    
     if(_loginClicked && _response.wait_for(std::chrono::seconds(0)) == std::future_status::ready){
         auto response = _response.get();
         if(response.status_code == 200){
@@ -201,8 +219,23 @@ void LoginScene::update(float timestep) {
             auto json = JsonValue::allocWithJson(response.text);
             _authToken = json->getString("token");
             _uuid = json->getString("uuid");
-            _gameid->deactivate();
             _isLoggedin = true;
+//            _gameid->addExitListener([this](const std::string& name, const std::string& text) {
+//                if(stoi(text)){
+//                    _response = cpr::PostAsync(cpr::Url{server_url + "/balance"},
+//                                                cpr::Body(balance_body(stoi(text))),
+//                                               cpr::Header{{"Content-Type", "application/json"}},cpr::Bearer{_authToken});
+//                }
+//            });
+//            updateText(_startgame, "CHECK BALANCE");
+            CUAssertLog(_startgame->removeListener(_startgameListener), "Listener not removed");
+//            _startgame->addListener([this](const std::string& name, bool down) {
+//                if (down) {
+//                    _checkBalanceClicked = true;
+//                    _resp2 = cpr::GetAsync(cpr::Url{server_url + "/balance"}, cpr::Header{{"Content-Type", "application/json"}},cpr::Bearer{_authToken});
+//                    
+//                }
+//            });
         }
         else{
             updateText(_startgame, "FAILED");
