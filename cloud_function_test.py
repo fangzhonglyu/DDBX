@@ -173,12 +173,14 @@ def login(request):
         return RESPONSE405
     request_json = request.get_json(silent=True)
     if not request_json:
+        print("Request has no json")
         return RESPONSE400
     
     # Extract username and password from JSON
     username = request_json.get('username')
     password = request_json.get('password')
     if not username or not password:
+        print("Request has no username or password")
         return RESPONSE400
     
     t2 = time.time()
