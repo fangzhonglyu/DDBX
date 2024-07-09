@@ -39,7 +39,7 @@ void DDBXApp::onStartup() {
     // Que up the other assets
     _assets->loadDirectory("json/assets.json");
     
-    cugl::net::NetworkLayer::start(net::NetworkLayer::Log::INFO);
+    cugl::net::NetworkLayer::start(net::NetworkLayer::Log::VERBOSE);
 
     CULog("Assets loaded");
 
