@@ -325,3 +325,58 @@ def balance(request):
         # Internal error occurred, log the error and return a 500 response
         log_error("balance", request, str(e))
         return RESPONSE500
+    
+@functions_framework.http
+def lobby(request):
+    """lobby endpoint for DDBX. Directs clients to lobby servers
+    Args:
+        request (flask.Request): The request object.
+    Returns:
+        Either a JSON response or an error response. See `gen_signup_response`.
+    """
+    # Check for valid request method and JSON
+    if "Authorization" not in request.headers:
+        return RESPONSE400
+    
+    token = request.headers["Authorization"].split(" ")[1]
+    print(token)
+        
+    # decode the token
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        return RESPONSE401
+    except jwt.InvalidTokenError:
+        return RESPONSE401
+    
+    if request.method != "POST":
+        return RESPONSE400
+    
+    request_json = request.get_json(silent=True)
+    if not request_json:
+        return RESPONSE400
+    roomid = request_json.get('roomid')
+    
+    try:
+        # Use a batch to insert the new user into the database
+        with database.snapshot() as snapshot:
+            # Query the database for the user's UUID and password hash
+            sql = "SELECT * FROM lobbies WHERE lobbyID = @roomid"
+            params = {"roomid": roomid}
+            param_types = {"roomid": spanner.param_types.INT64}
+            results = snapshot.execute_sql(sql, params=params, param_types=param_types)
+            
+            rooms = list(results)
+            
+            if len(rooms) != 1:
+                return RESPONSE404
+            
+            return jsonify({"message": "Room found.", "lobbyServer": rooms[0]['server']})
+    except Exception as e:
+        # Internal error occurred, log the error and return a 500 response
+        log_error("lobby", request, str(e))
+        return RESPONSE500
+    
+    
+        
+    
