@@ -2,6 +2,7 @@ import functions_framework
 from google.cloud import spanner
 from google.api_core.exceptions import AlreadyExists
 from flask import jsonify
+import random
 import jwt, datetime, os, bcrypt, uuid, base64, time
 
 
@@ -113,6 +114,8 @@ def process_request(request):
         return signup(request)
     elif request_path == "/balance":
         return balance(request)
+    elif request_path == "/lobby":
+        return lobby(request)
     else:
         return RESPONSE404
     
@@ -356,12 +359,30 @@ def lobby(request):
     if not request_json:
         return RESPONSE400
     roomid = request_json.get('roomid')
+    if(not roomid or roomid == 0):
+        try:
+            with database.snapshot() as snapshot:
+                # Query the database for the user's UUID and password hash
+                sql = "SELECT * FROM lobbyServers"
+                results = snapshot.execute_sql(sql)
+                
+                rooms = list(results)
+                if(len(rooms) == 0):
+                    return RESPONSE500
+
+                index = random.randint(0, len(rooms) - 1)
+                ip = rooms[index][0]
+                return jsonify({"message": "Room found.", "lobbies": ip})
+        except Exception as e:
+            # Internal error occurred, log the error and return a 500 response
+            log_error("lobby", request, str(e))
+            return RESPONSE500
     
     try:
-        # Use a batch to insert the new user into the database
+        # find the lobby with that id
         with database.snapshot() as snapshot:
             # Query the database for the user's UUID and password hash
-            sql = "SELECT * FROM lobbies WHERE lobbyID = @roomid"
+            sql = "SELECT server FROM lobbies WHERE lobbyID = @roomid"
             params = {"roomid": roomid}
             param_types = {"roomid": spanner.param_types.INT64}
             results = snapshot.execute_sql(sql, params=params, param_types=param_types)
@@ -371,7 +392,7 @@ def lobby(request):
             if len(rooms) != 1:
                 return RESPONSE404
             
-            return jsonify({"message": "Room found.", "lobbyServer": rooms[0]['server']})
+            return jsonify({"message": "Room found.", "lobbyServer": rooms[0][0]})
     except Exception as e:
         # Internal error occurred, log the error and return a 500 response
         log_error("lobby", request, str(e))
