@@ -39,6 +39,11 @@ protected:
     
     /** The back button for the menu scene */
     std::shared_ptr<cugl::scene2::Button> _backout;
+    
+    std::shared_ptr<cugl::scene2::Label> _label1;
+    
+    std::shared_ptr<cugl::scene2::Label> _label2;
+    
     /** The game id label (for updating) */
     std::shared_ptr<cugl::scene2::TextField> _gameid;
     /** The players label (for updating) */
@@ -47,11 +52,14 @@ protected:
     cpr::AsyncResponse _response;
     cpr::AsyncResponse _resp2;
     
+    int _roomid;
     Uint32 _startgameListener;
 
     /** Whether the startGame button had been pressed. */
     bool _loginClicked = false;
-    bool _checkBalanceClicked = false;
+    bool _lobbyClicked = false;
+    bool _negotiating = false;
+    bool _isHost = false;
     /** Whether the back button had been pressed. */
     bool _backClicked = false;
     /** Whether the player is logged in. */
@@ -127,6 +135,8 @@ public:
     bool getBackClicked() { return _backClicked; };
 
     bool isLoggedin() { return _isLoggedin; }
+    
+    std::shared_ptr<NetEventController> getNet() { return _network; }
 
 private:
     /**
