@@ -1,7 +1,7 @@
 import functions_framework
 from google.cloud import spanner
 from google.api_core.exceptions import AlreadyExists
-from flask import jsonify
+from flask import jsonify, make_response
 import random
 import jwt, datetime, os, bcrypt, uuid, base64, time
 
@@ -43,6 +43,22 @@ RESPONSE500.status_code = 500
 RESPONSE501 = jsonify({"error": "Not Implemented"})
 RESPONSE501.status_code = 501
 
+def text_response(text):
+    response = make_response(text, 200)
+    response.headers["Content-Type"] = "text/plain"
+    return response
+
+def str_to_list(playerIDs : str) -> list:
+    if(playerIDs == None or playerIDs == ''):
+        return []
+    list = playerIDs.split(',')
+    return list
+    
+def list_to_str(playerIDs : list) -> str:
+    if playerIDs == None:
+        return ''
+    str = ','.join(playerIDs)
+    return str
 
 #==============================================================================
 # Shared Helper Functions
@@ -116,6 +132,10 @@ def process_request(request):
         return balance(request)
     elif request_path == "/lobby":
         return lobby(request)
+    elif request_path == "/save":
+        return save(request)
+    elif request_path == "/load":
+        return load(request)
     else:
         return RESPONSE404
     
@@ -372,7 +392,7 @@ def lobby(request):
 
                 index = random.randint(0, len(rooms) - 1)
                 ip = rooms[index][0]
-                return jsonify({"message": "Room found.", "lobbies": ip})
+                return jsonify({"message": "Assigned to room server. ", "lobbyServer": ip})
         except Exception as e:
             # Internal error occurred, log the error and return a 500 response
             log_error("lobby", request, str(e))
@@ -399,5 +419,80 @@ def lobby(request):
         return RESPONSE500
     
     
-        
+@functions_framework.http
+def save(request):
+    if "Authorization" not in request.headers:
+        return RESPONSE400
     
+    token = request.headers["Authorization"].split(" ")[1]
+    print(token)
+        
+    # decode the token
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        return RESPONSE401
+    except jwt.InvalidTokenError:
+        return RESPONSE401
+    
+    if request.method != "POST":
+        return RESPONSE400
+    
+    try:
+        def update_balance(transaction):
+            # Query the database for the user's UUID and password hash
+            sql = "UPDATE players SET save = @save WHERE playerUUID = @playerUUID"
+            params = {"playerUUID": payload["sub"], "save": request.data}
+            param_types = {"playerUUID": spanner.param_types.STRING, "save": spanner.param_types.STRING}
+            transaction.execute_update(sql, params=params, param_types=param_types)
+
+        database.run_in_transaction(update_balance)
+        return jsonify({"message": "Save updated successfully."})
+    except Exception as e:
+        # Internal error occurred, log the error and return a 500 response
+        log_error("Save", request, str(e))
+        return RESPONSE500
+    
+@functions_framework.http
+def load(request):
+    if "Authorization" not in request.headers:
+        return RESPONSE400
+    
+    token = request.headers["Authorization"].split(" ")[1]
+    print(token)
+        
+    # decode the token
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        return RESPONSE401
+    except jwt.InvalidTokenError:
+        return RESPONSE401
+    
+    if request.method != "POST":
+        return RESPONSE400
+    
+    
+    try:
+        with database.snapshot() as snapshot:
+            # Query the database for the user's UUID and password hash
+            sql = "SELECT save, lobbies FROM players WHERE playerUUID = @playerUUID"
+            params = {"playerUUID": payload["sub"]}
+            param_types = {"playerUUID": spanner.param_types.STRING}
+            results = snapshot.execute_sql(sql, params=params, param_types=param_types)
+            
+            users = list(results)
+            
+            # Check if the user exists
+            if len(users) != 1:
+                return RESPONSE401
+            
+            save = users[0][0]
+            lobbies = str_to_list(users[0][1])
+            
+            return text_response(save)
+        
+    except Exception as e:
+        # Internal error occurred, log the error and return a 500 response
+        log_error("Save", request, str(e))
+        return RESPONSE500
