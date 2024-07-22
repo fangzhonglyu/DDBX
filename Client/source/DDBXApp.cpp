@@ -9,6 +9,7 @@
 //
 
 #include "DDBXApp.h"
+#include "CUHashTools.hpp"
 
 using namespace cugl;
 
@@ -133,22 +134,46 @@ void DDBXApp::preUpdate(float timestep){
         _status = LOGIN;
     }
     else if (_status == LOGIN) {
- /*       if (_loginScene.isLoggedin()) {
-			_loginScene.setActive(false);
-			_gameplay.init(_assets);
-			_status = GAME;
-		}*/
         _loginScene.update(timestep);
-        if(_loginScene.isLoggedin()){
-//            _loginScene.setActive(false);
-//            _gameplay.init(_assets);
-//            _status = GAME;
+        auto _network = _loginScene.getNet();
+        if(_network){
+            if(_network->getStatus() == NetEventController::Status::HANDSHAKE && _network->getShortUID()){
+                CULog("GAME START HANDSHAKE");
+                _gameplay.init(_assets, _network, _network->isHost(),_loginScene.getSaveData());
+                _network->markReady();
+            }
+            else if (_network->getStatus() == NetEventController::Status::INGAME) {
+                CULog("IN GAME");
+                _loginScene.setActive(false);
+                _gameplay.setActive(true);
+                _status = GAME;
+            }
+            else if (_network->getStatus() == NetEventController::Status::NETERROR) {
+                _network->disconnect();
+                _gameplay.setActive(false);
+                _gameplay.dispose();
+                _loginScene.dispose();
+                _loginScene.init(_assets);
+                _loginScene.setActive(true);
+                _status = LOGIN;
+            }
         }
     }
     else if (_status == GAME){
         if(_gameplay.isComplete()){
-            _gameplay.reset();
+            auto data = _gameplay.serializeGame();
+            std::string b64 = cugl::hashtool::b64_encode(*data);
+            CULog("length %lu", b64.size());
+            
+            _gameplay.setActive(false);
+            auto _network = _loginScene.getNet();
+            _network->disconnect();
             _status = LOGIN;
+            auto respsave = cpr::Post(cpr::Url{server_url + "/save"},
+                                      cpr::Body{b64},
+                                      cpr::Header{{"Content-Type", "application/json"}},
+                                      cpr::Bearer{_loginScene.getAuthToken()});
+            CUAssertLog(respsave.status_code == 200, "Not saved");
             _loginScene.setActive(true);
         }
         _gameplay.preUpdate(timestep);
@@ -162,6 +187,9 @@ void DDBXApp::postUpdate(float timestep) {
 }
 
 void DDBXApp::fixedUpdate() {
+    if(_loginScene.getNet()){
+        _loginScene.getNet()->updateNet();
+    }
     if (_status == GAME) {
         _gameplay.fixedUpdate();
     }

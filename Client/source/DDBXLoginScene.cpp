@@ -13,16 +13,10 @@
 #include <cpr/cpr.h>
 
 #include "DDBXLoginScene.h"
+#include "CUHashTools.hpp"
 
 //#define server_url (_assets->get<JsonValue>("server")->getString("BackendURL"))
 
-#define server_url std::string("https://us-east4-ddbx-soxehli.cloudfunctions.net/test_player_info")
-
-#define login_body(username,password) ("{\"username\":\"" + (username) + "\",\"password\":\"" + (password) + "\"}")
-
-#define balance_body(balance) ("{\"balance\":" + (std::to_string(balance)) + "}")
-
-#define lobby_body(roomid) ("{\"roomid\":" + (std::to_string(roomid)) + "}")
 
 using namespace cugl;
 using namespace cugl::net;
@@ -205,19 +199,15 @@ void LoginScene::update(float timestep) {
     }
     
     if(_network){
-        _network->updateNet();
-        if(_network->getStatus() == NetEventController::Status::CONNECTED){
+        if(!_waitingToStart && _network->getStatus() == cugl::physics2::net::NetEventController::Status::CONNECTED){
             _gameid->setText(_network->getRoomID());
             _gameid->deactivate();
-            
             _negotiating = false;
-            
             _startgame->setDown(false);
             _player->setHidden(false);
             _player->setVisible(true);
-            _player->setText(std::to_string(_network->getNumPlayers()));
             _player->deactivate();
-            
+            _waitingToStart = true;
             if(_isHost){
                 _startgame->addListener([this](const std::string& name, bool down){
                     if(down){
@@ -228,14 +218,23 @@ void LoginScene::update(float timestep) {
                 updateText(_startgame, "Start Game");
             }
             else{
-                updateText(_startgame, "CONNECTED");
+                updateText(_startgame, "WAITING ON HOST");
                 _startgame->setDown(true);
                 _startgame->deactivate();
             }
         }
+        if(_network->getStatus() == NetEventController::Status::CONNECTED){
+            _player->setText(std::to_string(_network->getNumPlayers()));
+        }
     }
     
-    if(_lobbyClicked && _response.wait_for(std::chrono::seconds(0)) == std::future_status::ready){
+    if(_lobbyClicked && _response.wait_for(std::chrono::seconds(0)) == std::future_status::ready && _resp2.wait_for(std::chrono::seconds(0)) == std::future_status::ready){
+        auto resp2 = _resp2.get();
+        if(resp2.status_code == 200){
+            _saveData = std::make_shared<vector<std::byte>>(cugl::hashtool::b64_decode(resp2.text));
+            CULog("Save data size: %lu", _saveData->size());
+        }
+
         auto response = _response.get();
         CULog("Response %ld", response.status_code);
         CULog("Response error %d %s", (int)(response.error.code), response.error.message.c_str());
@@ -274,7 +273,7 @@ void LoginScene::update(float timestep) {
             CULog("%s", response.text.c_str());
             auto json = JsonValue::allocWithJson(response.text);
             _authToken = json->getString("token");
-            _uuid = json->getString("uuid");
+            _uuid = json->getString("playerUUID");
             _isLoggedin = true;
             _gameid->setText("");
             _label1->setText("Room ID: ");
@@ -302,6 +301,11 @@ void LoginScene::update(float timestep) {
                                                cpr::Header{{"Content-Type", "application/json"}},
                                                cpr::Bearer{_authToken});
                     _lobbyClicked = true;
+                    
+                    _resp2 = cpr::PostAsync(cpr::Url{server_url + "/load"},
+                                               cpr::Body(lobby_body(_isHost?0  :_roomid)),
+                                               cpr::Header{{"Content-Type", "application/json"}},
+                                               cpr::Bearer{_authToken});
                 }
             });
         }

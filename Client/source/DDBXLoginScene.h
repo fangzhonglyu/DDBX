@@ -17,6 +17,14 @@
 
 #define PING_TEST_COUNT 5
 
+#define server_url std::string("https://us-east4-ddbx-soxehli.cloudfunctions.net/test_player_info")
+
+#define login_body(username,password) ("{\"username\":\"" + (username) + "\",\"password\":\"" + (password) + "\"}")
+
+#define balance_body(balance) ("{\"balance\":" + (std::to_string(balance)) + "}")
+
+#define lobby_body(roomid) ("{\"roomid\":" + (std::to_string(roomid)) + "}")
+
 using namespace cugl::physics2::net;
 
 /**
@@ -52,6 +60,8 @@ protected:
     cpr::AsyncResponse _response;
     cpr::AsyncResponse _resp2;
     
+    std::shared_ptr<std::vector<std::byte>> _saveData;
+    
     int _roomid;
     Uint32 _startgameListener;
 
@@ -59,7 +69,9 @@ protected:
     bool _loginClicked = false;
     bool _lobbyClicked = false;
     bool _negotiating = false;
+    bool _fetchingSave = false;
     bool _isHost = false;
+    bool _waitingToStart = false;
     /** Whether the back button had been pressed. */
     bool _backClicked = false;
     /** Whether the player is logged in. */
@@ -137,6 +149,10 @@ public:
     bool isLoggedin() { return _isLoggedin; }
     
     std::shared_ptr<NetEventController> getNet() { return _network; }
+    
+    std::string getAuthToken() { return _authToken; }
+    
+    std::shared_ptr<std::vector<std::byte>> getSaveData() { return _saveData; }
 
 private:
     /**

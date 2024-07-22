@@ -1,15 +1,20 @@
 //
-//  DDBXGameScene.h
-//  DDBX Client
-// 
-//  Game scene for the DDBX Client application.
-// 
-//  Author: Barry Lyu
-//  Version: 3/8/24
+//  NLGameScene.h
+//  Networked Crate Demo
 //
-
-#ifndef __DDBX_GAME_SCENE_H__
-#define __DDBX_GAME_SCENE_H__
+//  This is a demo based on the original Rocket Demo, this demo is made in
+//  addition to the Rocket Demo as a tutorial to the networked physics library.
+//
+//  The majority of this Demo is similar to the rocket demo, except for the
+//  physics-related methods.
+//
+//  This file is based on the CS 3152 PhysicsDemo Lab by Don Holden, 2007
+//
+//  Author: Walker White
+//  Version: 1/10/17
+//
+#ifndef __NL_GAME_SCENE_H__
+#define __NL_GAME_SCENE_H__
 #include <cugl/cugl.h>
 #include <box2d/b2_world_callbacks.h>
 #include <vector>
@@ -17,9 +22,63 @@
 #include <string>
 #include <random>
 #include "NLInput.h"
+#include "NLCrateEvent.h"
 
 using namespace cugl::physics2::net;
 using namespace cugl;
+
+/**
+ * The factory class for crate objects.
+ *
+ * This class is used to support automatically syncing newly added obstacle mid-simulation.
+ * Obstacles added throught the ObstacleFactory class from one client will be added to all
+ * clients in the simulations.
+ */
+class CrateFactory : public ObstacleFactory {
+public:
+    /** Pointer to the AssetManager for texture access, etc. */
+    std::shared_ptr<cugl::AssetManager> _assets;
+    /** Deterministic random generator for crate type */
+    std::mt19937 _rand;
+    /** Serializer for supporting parameters */
+    LWSerializer _serializer;
+    /** Deserializer for supporting parameters */
+    LWDeserializer _deserializer;
+    
+    std::vector<std::shared_ptr<cugl::physics2::Obstacle>> _crates;
+
+    /**
+     * Allocates a new instance of the factory using the given AssetManager.
+     */
+    static std::shared_ptr<CrateFactory> alloc(std::shared_ptr<AssetManager>& assets) {
+        auto f = std::make_shared<CrateFactory>();
+        f->init(assets);
+        return f;
+    };
+
+    /**
+     * Initializes empty factories using the given AssetManager.
+     */
+    void init(std::shared_ptr<AssetManager>& assets) {
+        _assets = assets;
+        _rand.seed(0xdeadbeef);
+    }
+    
+    /**
+     * Generate a pair of Obstacle and SceneNode using the given parameters
+     */
+    std::pair<std::shared_ptr<physics2::Obstacle>, std::shared_ptr<scene2::SceneNode>> createObstacle(Vec2 pos, float scale);
+
+    /**
+     * Helper method for converting normal parameters into byte vectors used for syncing.
+     */
+    std::shared_ptr<std::vector<std::byte>> serializeParams(Vec2 pos, float scale);
+    
+    /**
+     * Generate a pair of Obstacle and SceneNode using serialized parameters.
+     */
+    std::pair<std::shared_ptr<physics2::Obstacle>, std::shared_ptr<scene2::SceneNode>> createObstacle(const std::vector<std::byte>& params) override;
+};
 
 /**
  * This class is the primary gameplay constroller for the demo.
@@ -52,6 +111,11 @@ protected:
     /** The scale between the physics world and the screen (MUST BE UNIFORM) */
     float _scale;
 
+    std::mt19937 _rand;
+
+    std::shared_ptr<CrateFactory> _crateFact;
+    Uint32 _factId;
+
     // Physics objects for the game
     /** Reference to the player1 cannon */
     std::shared_ptr<cugl::scene2::SceneNode> _cannon1Node;
@@ -59,6 +123,8 @@ protected:
     /** Reference to the player2 cannon */
     std::shared_ptr<cugl::scene2::SceneNode> _cannon2Node;
     std::shared_ptr<cugl::physics2::BoxObstacle> _cannon2;
+    
+    std::vector<std::shared_ptr<cugl::physics2::Obstacle>> _crates;
     
     /** Host is by default the left cannon */
     bool _isHost;
@@ -73,6 +139,11 @@ protected:
 #pragma mark Internal Object Management
     
     /**
+     * This method adds a crate at the given position during the init process.
+     */
+    std::shared_ptr<cugl::physics2::Obstacle> addInitCrate(cugl::Vec2 pos);
+    
+    /**
      * Lays out the game geography.
      *
      * Pay close attention to how we attach physics objects to a scene graph.
@@ -83,7 +154,9 @@ protected:
      * This method is really, really long.  In practice, you would replace this
      * with your serialization loader, which would process a level file.
      */
+    void populateStatic();
     void populate();
+    void populate(const std::vector<std::byte> &data);
     
     /**
      * Adds the physics object to the physics world and loosely couples it to the scene graph
@@ -97,7 +170,7 @@ protected:
      * param obj    The physics object to add
      * param node   The scene graph node to attach it to
      */
-    void addInitObstacle(const std::shared_ptr<cugl::physics2::Obstacle>& obj, 
+    void addInitObstacle(const std::shared_ptr<cugl::physics2::Obstacle>& obj,
                      const std::shared_ptr<cugl::scene2::SceneNode>& node);
 
     /**
@@ -108,6 +181,17 @@ protected:
     void linkSceneToObs(const std::shared_ptr<cugl::physics2::Obstacle>& obj,
         const std::shared_ptr<cugl::scene2::SceneNode>& node);
     
+    /**
+     * This method adds a crate that had been fired by the player's cannon amid the simulation.
+     *
+     * If this machine is host, the crate should be fire from the left cannon (_cannon1), vice versa.
+     */
+    void fireCrate();
+    
+    /**
+     * This method takes a crateEvent and processes it.
+     */
+    void processCrateEvent(const std::shared_ptr<CrateEvent>& event);
 
     /**
      * Returns the active screen size of this scene.
@@ -155,7 +239,25 @@ public:
      *
      * @return true if the controller is initialized properly, false otherwise.
      */
-    bool init(const std::shared_ptr<cugl::AssetManager>& assets);
+    bool init(const std::shared_ptr<cugl::AssetManager>& assets, const std::shared_ptr<NetEventController> network, bool isHost, std::shared_ptr<std::vector<std::byte>> savedata);
+
+    /**
+     * Initializes the controller contents, and starts the game
+     *
+     * The constructor does not allocate any objects or memory.  This allows
+     * us to have a non-pointer reference to this controller, reducing our
+     * memory allocation.  Instead, allocation happens in this method.
+     *
+     * The game world is scaled so that the screen coordinates do not agree
+     * with the Box2d coordinates.  The bounds are in terms of the Box2d
+     * world, not the screen.
+     *
+     * @param assets    The (loaded) assets for this game mode
+     * @param rect      The game bounds in Box2d coordinates
+     *
+     * @return  true if the controller is initialized properly, false otherwise.
+     */
+    bool init(const std::shared_ptr<cugl::AssetManager>& assets, const cugl::Rect rect, const std::shared_ptr<NetEventController> network, bool isHost);
     
     /**
      * Initializes the controller contents, and starts the game
@@ -174,7 +276,11 @@ public:
      *
      * @return  true if the controller is initialized properly, false otherwise.
      */
-    bool init(const std::shared_ptr<cugl::AssetManager>& assets, const cugl::Rect rect, const cugl::Vec2 gravity);
+    bool init(const std::shared_ptr<cugl::AssetManager>& assets, const cugl::Rect rect, const cugl::Vec2 gravity, const std::shared_ptr<NetEventController> network, bool isHost);
+    
+    bool init(const std::shared_ptr<cugl::AssetManager>& assets, const cugl::Rect rect, const cugl::Vec2 gravity, const std::shared_ptr<NetEventController> network, bool isHost, std::shared_ptr<std::vector<std::byte>> savedata);
+    
+    std::shared_ptr<std::vector<std::byte>> serializeGame() const;
     
     
 #pragma mark -
@@ -248,8 +354,8 @@ public:
     /**
      * Processes the start of a collision
      *
-     * This method is called when we first get a collision between two objects. 
-     * We use this method to test if it is the "right" kind of collision.  In 
+     * This method is called when we first get a collision between two objects.
+     * We use this method to test if it is the "right" kind of collision.  In
      * particular, we use it to test if we make it to the win door.
      *
      * @param  contact  The two bodies that collided
@@ -259,14 +365,16 @@ public:
     /**
      * Handles any modifications necessary before collision resolution
      *
-     * This method is called just before Box2D resolves a collision.  We use 
-     * this method to implement sound on contact, using the algorithms outlined 
+     * This method is called just before Box2D resolves a collision.  We use
+     * this method to implement sound on contact, using the algorithms outlined
      * in Ian Parberry's "Introduction to Game Physics with Box2D".
      *
      * @param  contact  The two bodies that collided
      * @param  contact  The collision manifold before contact
      */
     void beforeSolve(b2Contact* contact, const b2Manifold* oldManifold);
+    
+    
 };
 
-#endif /* __DDBX_GAME_SCENE_H__ */
+#endif /* __NL_GAME_SCENE_H__ */
