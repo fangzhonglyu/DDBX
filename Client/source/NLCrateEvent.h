@@ -11,7 +11,7 @@
 #define NLCrateEvent_h
 
 #include <cugl/cugl.h>
-using namespace cugl::physics2::net;
+using namespace cugl::physics2::distrib;
 using namespace cugl;
 
 class CrateEvent : public NetEvent {

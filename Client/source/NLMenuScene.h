@@ -14,6 +14,8 @@
 #include <vector>
 
 
+using namespace cugl::scene2;
+
 /**
  * This class presents the menu to the player.
  *
@@ -21,7 +23,7 @@
  * listeners on the scene graph.  We only need getters so that the main
  * application can retrieve the state and communicate it to other scenes.
  */
-class MenuScene : public cugl::Scene2 {
+class MenuScene : public cugl::scene2::Scene2 {
 public:
     /**
      * The menu choice.
@@ -57,7 +59,7 @@ public:
      * This constructor does not allocate any objects or start the game.
      * This allows us to use the object without a heap pointer.
      */
-    MenuScene() : cugl::Scene2() {}
+    MenuScene() : cugl::scene2::Scene2() {}
     
     /**
      * Disposes of all (non-static) resources allocated to this mode.

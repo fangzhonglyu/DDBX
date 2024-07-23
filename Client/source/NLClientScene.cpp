@@ -17,7 +17,7 @@
 #include "NLClientScene.h"
 
 using namespace cugl;
-using namespace cugl::physics2::net;
+using namespace cugl::physics2::distrib;
 
 #pragma mark -
 #pragma mark Level Layout
@@ -63,7 +63,7 @@ bool ClientScene::init(const std::shared_ptr<cugl::AssetManager>& assets, std::s
     dimen *= SCENE_HEIGHT/dimen.height;
     if (assets == nullptr) {
         return false;
-    } else if (!Scene2::init(dimen)) {
+    } else if (!Scene2::initWithHint(dimen)) {
         return false;
     }
     

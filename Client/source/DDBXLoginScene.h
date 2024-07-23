@@ -25,7 +25,7 @@
 
 #define lobby_body(roomid) ("{\"roomid\":" + (std::to_string(roomid)) + "}")
 
-using namespace cugl::physics2::net;
+using namespace cugl::physics2::distrib;
 
 /**
  * This class provides the interface to make a new game.
@@ -34,7 +34,7 @@ using namespace cugl::physics2::net;
  * network controller.  We have separate the host from the client to make the
  * code a little more clear.
  */
-class LoginScene : public cugl::Scene2 {
+class LoginScene : public cugl::scene2::Scene2 {
 
 protected:
     /** The asset manager for this scene. */
@@ -89,7 +89,7 @@ public:
      * This constructor does not allocate any objects or start the game.
      * This allows us to use the object without a heap pointer.
      */
-    LoginScene() : cugl::Scene2(), _response(cpr::AsyncWrapper<cpr::Response>(std::future<cpr::Response>())), _resp2(cpr::AsyncWrapper<cpr::Response>(std::future<cpr::Response>())){
+    LoginScene() : cugl::scene2::Scene2(), _response(cpr::AsyncWrapper<cpr::Response>(std::future<cpr::Response>())), _resp2(cpr::AsyncWrapper<cpr::Response>(std::future<cpr::Response>())){
     }
     
     /**

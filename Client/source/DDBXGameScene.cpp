@@ -33,7 +33,9 @@
 #include <sstream>
 
 using namespace cugl;
-using namespace cugl::physics2::net;
+using namespace cugl::physics2::distrib;
+using namespace cugl::graphics;
+using namespace cugl::audio;
 
 #pragma mark -
 #pragma mark Level Geography
@@ -211,7 +213,7 @@ std::pair<std::shared_ptr<physics2::Obstacle>, std::shared_ptr<scene2::SceneNode
  * This constructor does not allocate any objects or start the controller.
  * This allows us to use a controller without a heap pointer.
  */
-GameScene::GameScene() : cugl::Scene2(),
+GameScene::GameScene() : cugl::scene2::Scene2(),
 _complete(false),
 _debug(false),
 _isHost(false)
@@ -232,7 +234,7 @@ _isHost(false)
  *
  * @return true if the controller is initialized properly, false otherwise.
  */
-bool GameScene::init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<cugl::physics2::net::NetEventController> network, bool isHost, std::shared_ptr<std::vector<std::byte>> savedata) {
+bool GameScene::init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<cugl::physics2::distrib::NetEventController> network, bool isHost, std::shared_ptr<std::vector<std::byte>> savedata) {
     return init(assets, Rect(0, 0, DEFAULT_WIDTH, DEFAULT_HEIGHT), Vec2(0, DEFAULT_GRAVITY), network, isHost, savedata);
 }
 
@@ -282,7 +284,7 @@ bool GameScene::init(const std::shared_ptr<AssetManager>& assets, const Rect rec
 
     if (assets == nullptr) {
         return false;
-    } else if (!Scene2::init(dimen)) {
+    } else if (!Scene2::initWithHint(dimen)) {
         return false;
     }
     
@@ -315,14 +317,14 @@ bool GameScene::init(const std::shared_ptr<AssetManager>& assets, const Rect rec
     _debugnode->setAnchor(Vec2::ANCHOR_BOTTOM_LEFT);
     _debugnode->setPosition(offset);
     
-    _chargeBar = std::dynamic_pointer_cast<scene2::ProgressBar>(assets->get<scene2::SceneNode>("load_bar"));
+    _chargeBar = std::dynamic_pointer_cast<scene2::ProgressBar>(assets->get<scene2::SceneNode>("load.bar"));
     _chargeBar->setPosition(Vec2(dimen.width/2.0f,dimen.height*0.9f));
     
     addChild(_worldnode);
     addChild(_debugnode);
     addChild(_chargeBar);
     
-    _world = physics2::net::NetWorld::alloc(Rect(0,0,DEFAULT_WIDTH,DEFAULT_HEIGHT),Vec2(0,DEFAULT_GRAVITY));
+    _world = physics2::distrib::NetWorld::alloc(Rect(0,0,DEFAULT_WIDTH,DEFAULT_HEIGHT),Vec2(0,DEFAULT_GRAVITY));
     _world->onBeginContact = [this](b2Contact* contact) {
             beginContact(contact);
         };
@@ -372,8 +374,8 @@ std::shared_ptr<std::vector<std::byte>> GameScene::serializeGame() const {
     LWSerializer ser;
     ser.writeFloat(_cannon1->getAngle());
     ser.writeFloat(_cannon2->getAngle());
-    ser.writeUint32((uint32_t)_crates.size());
-    CULog("Num Crates: %lu", _crates.size());
+    ser.writeUint32((Uint32)_crates.size());
+    CULog("Serialized Num Crates: %lu", _crates.size());
     for(auto crate : _crates){
         ser.writeFloat(crate->getPosition().x);
         ser.writeFloat(crate->getPosition().y);
@@ -463,7 +465,7 @@ void GameScene::processCrateEvent(const std::shared_ptr<CrateEvent>& event){
 }
 
 void GameScene::populateStatic() {
-    _world = physics2::net::NetWorld::alloc(Rect(0,0,DEFAULT_WIDTH,DEFAULT_HEIGHT),Vec2(0,DEFAULT_GRAVITY));
+    _world = physics2::distrib::NetWorld::alloc(Rect(0,0,DEFAULT_WIDTH,DEFAULT_HEIGHT),Vec2(0,DEFAULT_GRAVITY));
     _world->activateCollisionCallbacks(true);
     _world->onBeginContact = [this](b2Contact* contact) {
         beginContact(contact);
@@ -602,13 +604,12 @@ void GameScene::populate(const std::vector<std::byte> &data){
         float vy = deser.readFloat();
         float vangle = deser.readFloat();
         
-        auto pair =  _crateFact->createObstacle(Vec2(x,y), _scale);
-        addInitObstacle(pair.first,pair.second);
-        pair.first->setShared(false);
-        pair.first->setAngle(angle);
-        pair.first->setLinearVelocity(Vec2(vx,vy));
-        pair.first->setAngularVelocity(vangle);
-        pair.first->setShared(true);
+        auto crate = addInitCrate(Vec2(x,y));
+        crate->setShared(false);
+        crate->setAngle(angle);
+        crate->setLinearVelocity(Vec2(vx,vy));
+        crate->setAngularVelocity(vangle);
+        crate->setShared(true);
     }
         
     image  = _assets->get<Texture>(CANNON_TEXTURE);

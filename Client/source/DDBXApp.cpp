@@ -12,6 +12,7 @@
 #include "CUHashTools.hpp"
 
 using namespace cugl;
+using namespace cugl::graphics;
 
 #pragma mark -
 #pragma mark Application State
@@ -39,22 +40,24 @@ void DDBXApp::onStartup() {
     
     Input::activate<Keyboard>();
     Input::activate<TextInput>();
-    
+
+    _assets->attach<audio::Sound>(audio::SoundLoader::alloc()->getHook());
     _assets->attach<Font>(FontLoader::alloc()->getHook());
     _assets->attach<Texture>(TextureLoader::alloc()->getHook());
-    _assets->attach<Sound>(SoundLoader::alloc()->getHook());
-    _assets->attach<scene2::SceneNode>(Scene2Loader::alloc()->getHook());
     _assets->attach<JsonValue>(JsonLoader::alloc()->getHook());
     _assets->attach<WidgetValue>(WidgetLoader::alloc()->getHook());
+    _assets->attach<scene2::SceneNode>(scene2::Scene2Loader::alloc()->getHook());
 
-    _loading.init(_assets);
+    _assets->loadDirectory("json/loading.json");
+    _loading.init(_assets,"json/assets.json");
+    _loading.setSpriteBatch(_batch);
     _status = LOAD;
     
     // Que up the other assets
-    AudioEngine::start(24);
-    _assets->loadDirectoryAsync("json/assets.json",nullptr);
+    _loading.start();
+    audio::AudioEngine::start(24);
     
-    cugl::net::NetworkLayer::start(net::NetworkLayer::Log::INFO);
+    netcode::NetworkLayer::start(netcode::NetworkLayer::Log::INFO);
       
     Application::onStartup(); // YOU MUST END with call to parent
     setDeterministic(true);
@@ -84,7 +87,7 @@ void DDBXApp::onShutdown() {
     Input::deactivate<Mouse>();
 #endif
     
-	AudioEngine::stop();
+	audio::AudioEngine::stop();
 	Application::onShutdown();  // YOU MUST END with call to parent
 }
 
@@ -101,7 +104,7 @@ void DDBXApp::onShutdown() {
  */
 void DDBXApp::onSuspend() {
     CULog("RESUMED");
-    AudioEngine::get()->pause();
+    audio::AudioEngine::get()->pause();
 }
 
 /**
@@ -116,7 +119,7 @@ void DDBXApp::onSuspend() {
  */
 void DDBXApp::onResume() {
     CULog("RESUMED");
-    AudioEngine::get()->resume();
+    audio::AudioEngine::get()->resume();
 }
 
 
@@ -125,11 +128,12 @@ void DDBXApp::onResume() {
 
 void DDBXApp::preUpdate(float timestep){
     if (_status == LOAD && _loading.isActive()) {
-        _loading.update(0.01f);
+        _loading.update(timestep);
     }
     else if (_status == LOAD) {
         _loading.dispose(); // Disables the input listeners in this mode
         _loginScene.init(_assets);
+        _loginScene.setSpriteBatch(_batch);
         _loginScene.setActive(true);
         _status = LOGIN;
     }
@@ -140,6 +144,7 @@ void DDBXApp::preUpdate(float timestep){
             if(_network->getStatus() == NetEventController::Status::HANDSHAKE && _network->getShortUID()){
                 CULog("GAME START HANDSHAKE");
                 _gameplay.init(_assets, _network, _network->isHost(),_loginScene.getSaveData());
+                _gameplay.setSpriteBatch(_batch);
                 _network->markReady();
             }
             else if (_network->getStatus() == NetEventController::Status::INGAME) {
@@ -154,6 +159,7 @@ void DDBXApp::preUpdate(float timestep){
                 _gameplay.dispose();
                 _loginScene.dispose();
                 _loginScene.init(_assets);
+                _loginScene.setSpriteBatch(_batch);
                 _loginScene.setActive(true);
                 _status = LOGIN;
             }
@@ -163,7 +169,7 @@ void DDBXApp::preUpdate(float timestep){
         if(_gameplay.isComplete()){
             auto data = _gameplay.serializeGame();
             std::string b64 = cugl::hashtool::b64_encode(*data);
-            CULog("length %lu", b64.size());
+            CULog("Serialized Game Data: %s", b64.c_str());
             
             _gameplay.setActive(false);
             auto _network = _loginScene.getNet();
@@ -229,13 +235,13 @@ void DDBXApp::updateLoginScene(float timestep) {
 void DDBXApp::draw() {
     switch (_status) {
         case LOAD:
-            _loading.render(_batch);
+            _loading.render();
             break;
         case LOGIN:
-            _loginScene.render(_batch);
+            _loginScene.render();
             break;
         case GAME:
-            _gameplay.render(_batch);
+            _gameplay.render();
         default:
             break;
     }

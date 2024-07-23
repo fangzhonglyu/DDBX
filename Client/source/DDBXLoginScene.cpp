@@ -19,7 +19,7 @@
 
 
 using namespace cugl;
-using namespace cugl::net;
+using namespace cugl::netcode;
 using namespace std;
 
 #pragma mark -
@@ -77,7 +77,7 @@ bool LoginScene::init(const std::shared_ptr<cugl::AssetManager>& assets) {
     dimen *= SCENE_HEIGHT/dimen.height;
     if (assets == nullptr) {
         return false;
-    } else if (!Scene2::init(dimen)) {
+    } else if (!Scene2::initWithHint(dimen)) {
         return false;
     }
     
@@ -89,15 +89,15 @@ bool LoginScene::init(const std::shared_ptr<cugl::AssetManager>& assets) {
     scene->setContentSize(dimen);
     scene->doLayout(); // Repositions the HUD
 
-    _startgame = std::dynamic_pointer_cast<scene2::Button>(_assets->get<scene2::SceneNode>("host_center_start"));
-    _gameid = std::dynamic_pointer_cast<scene2::TextField>(_assets->get<scene2::SceneNode>("host_center_game_field_text"));
-    _player = std::dynamic_pointer_cast<scene2::TextField>(_assets->get<scene2::SceneNode>("host_center_players_field_text"));
+    _startgame = std::dynamic_pointer_cast<scene2::Button>(_assets->get<scene2::SceneNode>("host.center.start"));
+    _gameid = std::dynamic_pointer_cast<scene2::TextField>(_assets->get<scene2::SceneNode>("host.center.game.field.text"));
+    _player = std::dynamic_pointer_cast<scene2::TextField>(_assets->get<scene2::SceneNode>("host.center.players.field.text"));
     
-    _label1 = std::dynamic_pointer_cast<scene2::Label>(_assets->get<scene2::SceneNode>("host_center_game_label"));
+    _label1 = std::dynamic_pointer_cast<scene2::Label>(_assets->get<scene2::SceneNode>("host.center.game.label"));
     
-    _label2 = std::dynamic_pointer_cast<scene2::Label>(_assets->get<scene2::SceneNode>("host_center_players_label"));
+    _label2 = std::dynamic_pointer_cast<scene2::Label>(_assets->get<scene2::SceneNode>("host.center.players.label"));
 
-    _player->setHidden(true);
+    _player->setObfuscated(true);
     
     // Program the buttons
 
@@ -199,12 +199,12 @@ void LoginScene::update(float timestep) {
     }
     
     if(_network){
-        if(!_waitingToStart && _network->getStatus() == cugl::physics2::net::NetEventController::Status::CONNECTED){
+        if(!_waitingToStart && _network->getStatus() == cugl::physics2::distrib::NetEventController::Status::CONNECTED){
             _gameid->setText(_network->getRoomID());
             _gameid->deactivate();
             _negotiating = false;
             _startgame->setDown(false);
-            _player->setHidden(false);
+            _player->setObfuscated(false);
             _player->setVisible(true);
             _player->deactivate();
             _waitingToStart = true;
@@ -232,6 +232,7 @@ void LoginScene::update(float timestep) {
         auto resp2 = _resp2.get();
         if(resp2.status_code == 200){
             _saveData = std::make_shared<vector<std::byte>>(cugl::hashtool::b64_decode(resp2.text));
+            CULog("Received Save data %s", resp2.text.c_str());
             CULog("Save data size: %lu", _saveData->size());
         }
 
@@ -247,7 +248,9 @@ void LoginScene::update(float timestep) {
             auto serv = _assets->get<JsonValue>("server");
             NetcodeConfig config(serv);
             config.lobby = InetAddress(lobbyIp,config.lobby.port);
-            _network = NetEventController::alloc(config,_uuid,_authToken);
+            config.playerUUID = _uuid;
+            config.authToken = _authToken;
+            _network = NetEventController::alloc(config);
             _negotiating = true;
             if(_roomid == 0){
                 _isHost = true;

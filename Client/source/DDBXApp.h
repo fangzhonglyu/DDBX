@@ -12,13 +12,12 @@
 #define __DDBX_APP_H__
 #include <cugl/cugl.h>
 #include "DDBXGameScene.h"
-#include "DDBXLoadingScene.h"
 #include "DDBXLoginScene.h"
 #include "NLClientScene.h"
 #include "DDBXHTTP.h"
 #include "cpr/cpr.h"
 
-using namespace cugl::physics2::net;
+using namespace cugl::physics2::distrib;
 
 /**
  * This class represents the application root for the ship demo.
@@ -33,7 +32,7 @@ enum Status {
 
 protected:
     /** The global sprite batch for drawing (only want one of these) */
-    std::shared_ptr<cugl::SpriteBatch> _batch;
+    std::shared_ptr<cugl::graphics::SpriteBatch> _batch;
     /** The global asset manager */
     std::shared_ptr<cugl::AssetManager> _assets;
     
@@ -42,7 +41,7 @@ protected:
     /** The primary controller for the game world */
     GameScene _gameplay;
     /** The controller for the loading screen */
-    LoadingScene _loading;
+    cugl::scene2::LoadingScene _loading;
     /** The controller for the login screen */
     LoginScene _loginScene;
     

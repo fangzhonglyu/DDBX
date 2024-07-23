@@ -24,7 +24,7 @@
 #include "NLInput.h"
 #include "NLCrateEvent.h"
 
-using namespace cugl::physics2::net;
+using namespace cugl::physics2::distrib;
 using namespace cugl;
 
 /**
@@ -87,7 +87,7 @@ public:
  * really a mini-GameEngine in its own right.  As in 3152, we separate it out
  * so that we can have a separate mode for the loading screen.
  */
-class GameScene : public cugl::Scene2 {
+class GameScene : public cugl::scene2::Scene2 {
 protected:
 
     std::shared_ptr<cugl::AssetManager> _assets;
@@ -107,7 +107,7 @@ protected:
     std::shared_ptr<cugl::scene2::ProgressBar> _chargeBar;
 
     /** The Box2D world */
-    std::shared_ptr<cugl::physics2::net::NetWorld> _world;
+    std::shared_ptr<cugl::physics2::distrib::NetWorld> _world;
     /** The scale between the physics world and the screen (MUST BE UNIFORM) */
     float _scale;
 

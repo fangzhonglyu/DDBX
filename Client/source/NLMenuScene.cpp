@@ -46,7 +46,7 @@ bool MenuScene::init(const std::shared_ptr<cugl::AssetManager>& assets) {
     dimen *= SCENE_HEIGHT/dimen.height;
     if (assets == nullptr) {
         return false;
-    } else if (!Scene2::init(dimen)) {
+    } else if (!Scene2::initWithHint(dimen)) {
         return false;
     }
     

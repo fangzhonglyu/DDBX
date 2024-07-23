@@ -15,7 +15,7 @@
 #include <cugl/cugl.h>
 #include <vector>
 
-using namespace cugl::physics2::net;
+using namespace cugl::physics2::distrib;
 
 /**
  * This class provides the interface to join an existing game.
@@ -24,7 +24,7 @@ using namespace cugl::physics2::net;
  * network controller.  We have separate the host from the client to make the
  * code a little more clear.
  */
-class ClientScene : public cugl::Scene2 {
+class ClientScene : public cugl::scene2::Scene2 {
 protected:
     /** The asset manager for this scene. */
     std::shared_ptr<cugl::AssetManager> _assets;
@@ -41,7 +41,7 @@ protected:
     std::shared_ptr<cugl::scene2::Label> _player;
     
     /** The network configuration */
-    cugl::net::NetcodeConfig _config;
+    cugl::netcode::NetcodeConfig _config;
     
     /** Whether the back button had been clicked. */
     bool _backClicked = false;
@@ -55,7 +55,7 @@ public:
      * This constructor does not allocate any objects or start the game.
      * This allows us to use the object without a heap pointer.
      */
-    ClientScene() : cugl::Scene2() {}
+    ClientScene() : cugl::scene2::Scene2() {}
     
     /**
      * Disposes of all (non-static) resources allocated to this mode.
