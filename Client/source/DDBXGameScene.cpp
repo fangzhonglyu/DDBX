@@ -48,8 +48,12 @@ using namespace cugl::audio;
 #define DEFAULT_WIDTH   32.0f
 /** Height of the game world in Box2d units */
 #define DEFAULT_HEIGHT  18.0f
+
+#define ATTRACT_RADIUS 4.0f
+#define FORCE_FACTOR 20.0f
+
 /** The default value of gravity (going down) */
-#define DEFAULT_GRAVITY -4.9f
+#define DEFAULT_GRAVITY 0.f
 
 #define DEFAULT_TURN_RATE 0.05f
 
@@ -80,8 +84,8 @@ float BOXES[] = { 14.5f, 14.25f,
                   10.0f,  3.00f, 13.0f,  3.00f, 16.0f, 3.00f, 19.0f, 3.0f};
 
 /** The initial cannon position */
-float CAN1_POS[] = { 2, 9 };
-float CAN2_POS[] = { 30,9 };
+float CAN1_POS[] = { 4, 9 };
+float CAN2_POS[] = { 28,9 };
 /** The goal door position */
 float GOAL_POS[] = { 6, 12};
 
@@ -130,7 +134,7 @@ float GOAL_POS[] = { 6, 12};
 /** Angular damping of the crate objects */
 #define CRATE_DAMPING       1.0f
 /** Collision restitution for all objects */
-#define BASIC_RESTITUTION   0.1f
+#define BASIC_RESTITUTION   0.2f
 /** Threshold for generating sound on collision */
 #define SOUND_THRESHOLD     3
 
@@ -139,12 +143,12 @@ float GOAL_POS[] = { 6, 12};
 /**
  * Generate a pair of Obstacle and SceneNode using the given parameters
  */
-std::pair<std::shared_ptr<physics2::Obstacle>, std::shared_ptr<scene2::SceneNode>> CrateFactory::createObstacle(Vec2 pos, float scale) {
+std::pair<std::shared_ptr<physics2::Obstacle>, std::shared_ptr<scene2::SceneNode>> CrateFactory::createObstacle(Vec2 pos, float scale, float resize) {
     //Choose randomly between wooden crates and iron crates.
     int indx = (_rand() % 2 == 0 ? 2 : 1);
     std::string name = (CRATE_PREFIX "0") + std::to_string(indx);
     auto image = _assets->get<Texture>(name);
-    Size boxSize(image->getSize() / scale / 2.f);
+    Size boxSize(image->getSize() / scale / 2.f * resize);
     
     // TODO: allocate a box obstacle at pos with boxSize, set its angleSnap to 0, debugColor to DYNAMIC_COLOR, density to CRATE_DENSITY, friction to CRATE_FRICTION, and restitution to BASIC_RESTITUTION, after everything is set, make the object shared by calling setShared(). Then allocate a PolygonNode from image, set its anchor to center, and scale to 0.5f. Lastly return the pair of Obstacle and sceneNode.
     
@@ -166,7 +170,7 @@ std::pair<std::shared_ptr<physics2::Obstacle>, std::shared_ptr<scene2::SceneNode
     
     auto sprite = scene2::PolygonNode::allocWithTexture(image);
     sprite->setAnchor(Vec2::ANCHOR_CENTER);
-    sprite->setScale(0.5f);
+    sprite->setScale(0.5f * resize);
     
     _crates.push_back(crate);
     
@@ -177,13 +181,14 @@ std::pair<std::shared_ptr<physics2::Obstacle>, std::shared_ptr<scene2::SceneNode
 /**
  * Helper method for converting normal parameters into byte vectors used for syncing.
  */
-std::shared_ptr<std::vector<std::byte>> CrateFactory::serializeParams(Vec2 pos, float scale) {
+std::shared_ptr<std::vector<std::byte>> CrateFactory::serializeParams(Vec2 pos, float scale, float resize) {
     // TODO: Use _serializer to serialize pos and scale (remember to make a shared copy of the serializer reference, otherwise it will be lost if the serializer is reset).
 #pragma mark BEGIN SOLUTION
     _serializer.reset();
     _serializer.writeFloat(pos.x);
     _serializer.writeFloat(pos.y);
     _serializer.writeFloat(scale);
+    _serializer.writeFloat(resize);
     return std::make_shared<std::vector<std::byte>>(_serializer.serialize());
 #pragma mark END SOLUTION
 }
@@ -200,7 +205,8 @@ std::pair<std::shared_ptr<physics2::Obstacle>, std::shared_ptr<scene2::SceneNode
     float y = _deserializer.readFloat();
     Vec2 pos = Vec2(x,y);
     float scale = _deserializer.readFloat();
-    return createObstacle(pos, scale);
+    float resize = _deserializer.readFloat();
+    return createObstacle(pos, scale, resize);
 #pragma mark END SOLUTION
 }
 
@@ -354,7 +360,7 @@ bool GameScene::init(const std::shared_ptr<AssetManager>& assets, const Rect rec
     _network->enablePhysics(_world, linkSceneToObsFunc);
     
     if(!isHost){
-        _network->getPhysController()->acquireObs(_cannon2, 0);
+        _network->getPhysController()->acquireObs(_rocket2, 0);
     }
 
     _factId = _network->getPhysController()->attachFactory(_crateFact);
@@ -372,8 +378,8 @@ bool GameScene::init(const std::shared_ptr<AssetManager>& assets, const Rect rec
 
 std::shared_ptr<std::vector<std::byte>> GameScene::serializeGame() const {
     LWSerializer ser;
-    ser.writeFloat(_cannon1->getAngle());
-    ser.writeFloat(_cannon2->getAngle());
+    ser.writeFloat(_rocket1->getAngle());
+    ser.writeFloat(_rocket2->getAngle());
     ser.writeUint32((Uint32)_crates.size());
     CULog("Serialized Num Crates: %lu", _crates.size());
     for(auto crate : _crates){
@@ -431,8 +437,9 @@ void GameScene::reset() {
 /**
  * This method adds a crate at the given position during the init process.
  */
-std::shared_ptr<physics2::Obstacle> GameScene::addInitCrate(cugl::Vec2 pos) {
-    auto pair =  _crateFact->createObstacle(pos, _scale);
+std::shared_ptr<physics2::Obstacle> GameScene::addInitCrate(cugl::Vec2 pos, float scale, float resize) {
+    auto pair =  _crateFact->createObstacle(pos, scale, resize);
+    _crates.push_back(pair.first);
     addInitObstacle(pair.first,pair.second);
     return pair.first;
 }
@@ -446,11 +453,11 @@ void GameScene::fireCrate() {
     //TODO: Add a new crate to the simulation using the addSharedObstacle() method from the physics controller, and set its velocity in the direction the cannon is aimed scaled by (50 * _input.getFirePower()).
     //HINT: You can use the serializedParams() method of the crate factory to help you serialize the parameters.
 #pragma mark BEGIN SOLUTION
-    auto cannon = _isHost ? _cannon1 : _cannon2;
-    auto params = _crateFact->serializeParams(cannon->getPosition(), _scale);
-    auto pair = _network->getPhysController()->addSharedObstacle(_factId, params);
+    auto cannon = _isHost ? _rocket1 : _rocket2;
     float angle = cannon->getAngle() + M_PI_2;
     Vec2 forward(SDL_cosf(angle), SDL_sinf(angle));
+    auto params = _crateFact->serializeParams(cannon->getPosition()+forward, _scale , (_input.getFirePower() + 0.4f));
+    auto pair = _network->getPhysController()->addSharedObstacle(_factId, params);
     pair.first->setLinearVelocity(forward * 50 *_input.getFirePower());
     _crates.push_back(pair.first);
 #pragma mark END SOLUTION
@@ -544,44 +551,81 @@ void GameScene::populate() {
     populateStatic();
     std::shared_ptr<Texture> image;
 #pragma mark : Crates
-    float f1 = _rand() % (int)(DEFAULT_WIDTH - 4) + 2;
-    float f2 = _rand() % (int)(DEFAULT_HEIGHT - 4) + 2;
-    Vec2 boxPos(f1, f2);
-        
     for (int ii = 0; ii < NUM_CRATES; ii++) {
-        f1 = _rand() % (int)(DEFAULT_WIDTH - 6) + 3;
-        f2 = _rand() % (int)(DEFAULT_HEIGHT - 6) + 3;
+        float f1 = _rand() % (int)(DEFAULT_WIDTH - 6) + 3;
+        float f2 = _rand() % (int)(DEFAULT_HEIGHT - 6) + 3;
         // Pick a crate and random and generate the key
         Vec2 boxPos(f1, f2);
-        addInitCrate(boxPos);
+        float f3 = _rand() % (int)(10) + 4;
+        addInitCrate(boxPos, _scale, f3 * 0.1f);
     }
         
 #pragma mark : Cannon
-    image  = _assets->get<Texture>(CANNON_TEXTURE);
-    _cannon1Node = scene2::PolygonNode::allocWithTexture(image);
-    Size canSize(image->getSize()/_scale);
-        
-    Vec2 canPos1 = ((Vec2)CAN1_POS);
-    _cannon1 = cugl::physics2::BoxObstacle::alloc(canPos1,canSize);
-    //_cannon1->setBodyType(b2BodyType::b2_kinematicBody);
-    _cannon1->setAngle(-M_PI_2);
-    _cannon1->setDebugColor(DYNAMIC_COLOR);
-    _cannon1->setSensor(true);
-        
-    image  = _assets->get<Texture>(CANNON_TEXTURE);
-    _cannon2Node = scene2::PolygonNode::allocWithTexture(image);
     
-    Vec2 canPos2 = ((Vec2)CAN2_POS);
-    _cannon2= cugl::physics2::BoxObstacle::alloc(canPos2,canSize);
-    //_cannon2->setBodyType(b2BodyType::b2_kinematicBody);
-    _cannon2->setAngle(M_PI_2);
-    _cannon2->setDebugColor(DYNAMIC_COLOR);
-    _cannon2->setSensor(true);
+    Vec2 rockPos = ((Vec2)CAN1_POS);
+    image  = _assets->get<Texture>(CANNON_TEXTURE);
+    Size rockSize(image->getSize()/_scale);
+    
+    _rocket1 = RocketModel::alloc(rockPos,rockSize);
+    _rocket1->setDrawScale(_scale);
+    _rocket1->setDebugColor(DYNAMIC_COLOR);
+    
+    auto rocketNode = scene2::PolygonNode::allocWithTexture(image);
+    rocketNode->setAnchor(Vec2::ANCHOR_CENTER);
+    _rocket1->setShipNode(rocketNode);
+    
+    // These will attach them to the ship node
+    _rocket1->setBurnerStrip(RocketModel::Burner::MAIN, _assets->get<Texture>(MAIN_FIRE_TEXTURE));
+    _rocket1->setBurnerStrip(RocketModel::Burner::LEFT, _assets->get<Texture>(LEFT_FIRE_TEXTURE));
+    _rocket1->setBurnerStrip(RocketModel::Burner::RIGHT,_assets->get<Texture>(RGHT_FIRE_TEXTURE));
+    
+    // This just stores the keys
+    _rocket1->setBurnerSound(RocketModel::Burner::MAIN,  MAIN_FIRE_SOUND);
+    _rocket1->setBurnerSound(RocketModel::Burner::LEFT,  LEFT_FIRE_SOUND);
+    _rocket1->setBurnerSound(RocketModel::Burner::RIGHT, RGHT_FIRE_SOUND);
+    
+    _rocket1->setAngle(-M_PI_2);
+
+    // Create the polygon node (empty, as the model will initialize)
+    _worldnode->addChild(rocketNode);
+    _rocket1->setDebugScene(_debugnode);
+    _world->initObstacle(_rocket1);
+    
+    if(_isHost){
+        _world->getOwnedObstacles().insert({_rocket1,0});
+    }
+
+    rockPos = ((Vec2)CAN2_POS);
+
+    _rocket2 = RocketModel::alloc(rockPos,rockSize);
+    _rocket2->setDrawScale(_scale);
+    _rocket2->setDebugColor(DYNAMIC_COLOR);
+    
+    rocketNode = scene2::PolygonNode::allocWithTexture(image);
+    rocketNode->setAnchor(Vec2::ANCHOR_CENTER);
+    _rocket2->setShipNode(rocketNode);
+    
+    // These will attach them to the ship node
+    _rocket2->setBurnerStrip(RocketModel::Burner::MAIN, _assets->get<Texture>(MAIN_FIRE_TEXTURE));
+    _rocket2->setBurnerStrip(RocketModel::Burner::LEFT, _assets->get<Texture>(LEFT_FIRE_TEXTURE));
+    _rocket2->setBurnerStrip(RocketModel::Burner::RIGHT,_assets->get<Texture>(RGHT_FIRE_TEXTURE));
+    
+    _rocket2->setAngle(M_PI_2);
+
+    // Create the polygon node (empty, as the model will initialize)
+    _worldnode->addChild(rocketNode);
+    _rocket2->setDebugScene(_debugnode);
+    _world->initObstacle(_rocket2);
+    
+    if(!_isHost){
+        _world->getOwnedObstacles().insert({_rocket2,0});
+    }
     
     addInitObstacle(wallobj1, wallsprite1);  // All walls share the same texture
     addInitObstacle(wallobj2, wallsprite2);  // All walls share the same texture
-    addInitObstacle(_cannon1, _cannon1Node);
-    addInitObstacle(_cannon2, _cannon2Node);
+    
+//    addInitObstacle(_rocket1, _cannon1Node);
+//    addInitObstacle(_rocket2, _cannon2Node);
 }
 
 void GameScene::populate(const std::vector<std::byte> &data){
@@ -612,31 +656,31 @@ void GameScene::populate(const std::vector<std::byte> &data){
         crate->setShared(true);
     }
         
-    image  = _assets->get<Texture>(CANNON_TEXTURE);
-    _cannon1Node = scene2::PolygonNode::allocWithTexture(image);
-    Size canSize(image->getSize()/_scale);
-        
-    Vec2 canPos1 = ((Vec2)CAN1_POS);
-    _cannon1 = cugl::physics2::BoxObstacle::alloc(canPos1,canSize);
-    //_cannon1->setBodyType(b2BodyType::b2_kinematicBody);
-    _cannon1->setAngle(cannon1Angle);
-    _cannon1->setDebugColor(DYNAMIC_COLOR);
-    _cannon1->setSensor(true);
-        
-    image  = _assets->get<Texture>(CANNON_TEXTURE);
-    _cannon2Node = scene2::PolygonNode::allocWithTexture(image);
-    
-    Vec2 canPos2 = ((Vec2)CAN2_POS);
-    _cannon2= cugl::physics2::BoxObstacle::alloc(canPos2,canSize);
-    //_cannon2->setBodyType(b2BodyType::b2_kinematicBody);
-    _cannon2->setAngle(cannon2Angle);
-    _cannon2->setDebugColor(DYNAMIC_COLOR);
-    _cannon2->setSensor(true);
+//    image  = _assets->get<Texture>(CANNON_TEXTURE);
+//    _cannon1Node = scene2::PolygonNode::allocWithTexture(image);
+//    Size canSize(image->getSize()/_scale);
+//        
+//    Vec2 canPos1 = ((Vec2)CAN1_POS);
+//    _rocket1 = cugl::physics2::BoxObstacle::alloc(canPos1,canSize);
+//    //_cannon1->setBodyType(b2BodyType::b2_kinematicBody);
+//    _rocket1->setAngle(cannon1Angle);
+//    _rocket1->setDebugColor(DYNAMIC_COLOR);
+//    _rocket1->setSensor(true);
+//        
+//    image  = _assets->get<Texture>(CANNON_TEXTURE);
+//    _cannon2Node = scene2::PolygonNode::allocWithTexture(image);
+//    
+//    Vec2 canPos2 = ((Vec2)CAN2_POS);
+//    _rocket2= cugl::physics2::BoxObstacle::alloc(canPos2,canSize);
+//    //_cannon2->setBodyType(b2BodyType::b2_kinematicBody);
+//    _rocket2->setAngle(cannon2Angle);
+//    _rocket2->setDebugColor(DYNAMIC_COLOR);
+//    _rocket2->setSensor(true);
     
     addInitObstacle(wallobj1, wallsprite1);  // All walls share the same texture
     addInitObstacle(wallobj2, wallsprite2);  // All walls share the same texture
-    addInitObstacle(_cannon1, _cannon1Node);
-    addInitObstacle(_cannon2, _cannon2Node);
+    addInitObstacle(_rocket1, _cannon1Node);
+    addInitObstacle(_rocket2, _cannon2Node);
 }
 
 void GameScene::linkSceneToObs(const std::shared_ptr<physics2::Obstacle>& obj,
@@ -714,9 +758,26 @@ void GameScene::preUpdate(float dt) {
     }
 #pragma mark END SOLUTION
     
+    std::shared_ptr<RocketModel> rocket;
+    
+    if(_isHost){
+        rocket = _rocket1;
+    }
+    else{
+        rocket = _rocket2;
+    }
+    
+    //rocket->setFX(_input.getHorizontal() * rocket->getThrust());
+    rocket->setFY(_input.getVertical() * rocket->getThrust());
+    rocket->applyForce();
+    
+    // Animate the three burners
+    updateBurner(RocketModel::Burner::MAIN,  _rocket1->getFY() >  1, true);
+    updateBurner(RocketModel::Burner::MAIN,  _rocket2->getFY() >  1, false);
+    
     float turnRate = _isHost ? DEFAULT_TURN_RATE : -DEFAULT_TURN_RATE;
-    auto cannon = _isHost ? _cannon1 : _cannon2;
-    cannon->setAngle(_input.getVertical() * turnRate + cannon->getAngle());
+    float hor = _input.getHorizontal() * (_isHost ? -1 : 1);
+    rocket->setAngle(rocket->getAngle() - hor * turnRate);
 }
 
 void GameScene::postUpdate(float dt) {
@@ -728,6 +789,8 @@ void GameScene::fixedUpdate() {
     
     //Hint: You can check if ptr points to an object of class A using std::dynamic_pointer_cast<A>(ptr). You should always check isInAvailable() before popInEvent().
     
+   
+    
 #pragma mark BEGIN SOLUTION
     if(_network->isInAvailable()){
         auto e = _network->popInEvent();
@@ -736,10 +799,59 @@ void GameScene::fixedUpdate() {
             processCrateEvent(crateEvent);
         }
     }
+    
+    auto rocket = _rocket1;
+    //CULog("NUM CRATES: %lu", _crates.size());
+    for(auto crate : _crates){
+        float dist = crate->getPosition().distance(rocket->getPosition());
+        if(dist < ATTRACT_RADIUS * 1.5){
+            Vec2 unit = (rocket->getPosition() - crate->getPosition()).getNormalization() * FORCE_FACTOR * (dist-ATTRACT_RADIUS)/ATTRACT_RADIUS;
+            if(dist < ATTRACT_RADIUS){
+                unit *= 2;
+            }
+            crate->getBody()->ApplyForceToCenter(b2Vec2(unit.x,unit.y) , true);
+        }
+    }
+    
+    rocket = _rocket2;
+    for(auto crate : _crates){
+        float dist = crate->getPosition().distance(rocket->getPosition());
+        if(dist < ATTRACT_RADIUS * 1.5){
+            Vec2 unit = (rocket->getPosition() - crate->getPosition()).getNormalization() * FORCE_FACTOR * (dist-ATTRACT_RADIUS)/ATTRACT_RADIUS;
+            if(dist < ATTRACT_RADIUS){
+                unit *= 2;
+            }
+            crate->getBody()->ApplyForceToCenter(b2Vec2(unit.x,unit.y) , true);
+        }
+    }
+    
 #pragma mark END SOLUTION
     _world->update(FIXED_TIMESTEP_S);
 }
 
+void GameScene::updateBurner(RocketModel::Burner burner, bool on, bool host) {
+    std::shared_ptr<RocketModel> rocket;
+    if(host){
+        rocket = _rocket1;
+    }
+    else{
+        rocket = _rocket2;
+    }
+    std::string sound = rocket->getBurnerSound(burner);
+    if (on) {
+        rocket->animateBurner(burner, true);
+        if (!AudioEngine::get()->isActive(sound) && sound.size() > 0) {
+            auto source = _assets->get<Sound>(sound);
+            AudioEngine::get()->play(sound,source,true,source->getVolume());
+        }
+    } else {
+        rocket->animateBurner(burner, false);
+        if (AudioEngine::get()->isActive(sound)) {
+            AudioEngine::get()->clear(sound);
+        }
+    }
+    
+}
 
 /**
  * Executes the core gameplay loop of this world.
@@ -809,6 +921,21 @@ void GameScene::beforeSolve(b2Contact* contact, const b2Manifold* oldManifold) {
             }
         }
     }
+    
+//    auto rocket = _isHost ? _rocket1 : _rocket2;
+//    auto otherR = _isHost ? _rocket2 : _rocket1;
+//    intptr_t rptr = reinterpret_cast<intptr_t>(rocket.get());
+//    intptr_t optr = reinterpret_cast<intptr_t>(otherR.get());
+//    
+//    intptr_t aptr = contact->GetFixtureA()->GetUserData().pointer;
+//    intptr_t bptr = contact->GetFixtureB()->GetUserData().pointer;
+//    
+//    if(aptr == rptr || bptr != optr){
+//        auto obs = reinterpret_cast<physics2::Obstacle*>(bptr);
+//        if(obs->getBodyType() == b2BodyType::b2_dynamicBody){
+//            
+//        }
+//    }
 }
 
 /**

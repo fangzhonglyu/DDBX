@@ -23,6 +23,7 @@
 #include <random>
 #include "NLInput.h"
 #include "NLCrateEvent.h"
+#include "RDRocketModel.h"
 
 using namespace cugl::physics2::distrib;
 using namespace cugl;
@@ -67,12 +68,12 @@ public:
     /**
      * Generate a pair of Obstacle and SceneNode using the given parameters
      */
-    std::pair<std::shared_ptr<physics2::Obstacle>, std::shared_ptr<scene2::SceneNode>> createObstacle(Vec2 pos, float scale);
+    std::pair<std::shared_ptr<physics2::Obstacle>, std::shared_ptr<scene2::SceneNode>> createObstacle(Vec2 pos, float scale, float resize);
 
     /**
      * Helper method for converting normal parameters into byte vectors used for syncing.
      */
-    std::shared_ptr<std::vector<std::byte>> serializeParams(Vec2 pos, float scale);
+    std::shared_ptr<std::vector<std::byte>> serializeParams(Vec2 pos, float scale, float resize);
     
     /**
      * Generate a pair of Obstacle and SceneNode using serialized parameters.
@@ -119,10 +120,10 @@ protected:
     // Physics objects for the game
     /** Reference to the player1 cannon */
     std::shared_ptr<cugl::scene2::SceneNode> _cannon1Node;
-    std::shared_ptr<cugl::physics2::BoxObstacle> _cannon1;
+    std::shared_ptr<RocketModel> _rocket1;
     /** Reference to the player2 cannon */
     std::shared_ptr<cugl::scene2::SceneNode> _cannon2Node;
-    std::shared_ptr<cugl::physics2::BoxObstacle> _cannon2;
+    std::shared_ptr<RocketModel> _rocket2;
     
     std::vector<std::shared_ptr<cugl::physics2::Obstacle>> _crates;
     
@@ -141,7 +142,11 @@ protected:
     /**
      * This method adds a crate at the given position during the init process.
      */
-    std::shared_ptr<cugl::physics2::Obstacle> addInitCrate(cugl::Vec2 pos);
+    std::shared_ptr<cugl::physics2::Obstacle> addInitCrate(cugl::Vec2 pos){
+        return addInitCrate(pos, _scale, 1.0f);
+    }
+    
+    std::shared_ptr<cugl::physics2::Obstacle> addInitCrate(cugl::Vec2 pos, float scale, float resize);
     
     /**
      * Lays out the game geography.
@@ -331,6 +336,8 @@ public:
     
 #pragma mark -
 #pragma mark Gameplay Handling
+    
+    void updateBurner(RocketModel::Burner burner, bool on, bool host);
 
     virtual void preUpdate(float timestep);
     virtual void postUpdate(float timestep);

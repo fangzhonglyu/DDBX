@@ -143,7 +143,7 @@ void DDBXApp::preUpdate(float timestep){
         if(_network){
             if(_network->getStatus() == NetEventController::Status::HANDSHAKE && _network->getShortUID()){
                 CULog("GAME START HANDSHAKE");
-                _gameplay.init(_assets, _network, _network->isHost(),_loginScene.getSaveData());
+                _gameplay.init(_assets, _network, _network->isHost(),nullptr);
                 _gameplay.setSpriteBatch(_batch);
                 _network->markReady();
             }
